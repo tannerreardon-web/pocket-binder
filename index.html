@@ -418,6 +418,14 @@ body.view-only .edit-only { display: none !important; }
 .gi-missing { margin: 0; padding: 12px 14px 12px 32px; border: 1px solid var(--line); border-radius: 12px; max-height: 220px; overflow: auto; display: grid; gap: 4px; font-size: 13px; }
 .gi-missing li span { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
 
+.newer-bar {
+  position: fixed; z-index: 9500; left: 50%; transform: translateX(-50%);
+  bottom: calc(70px + env(safe-area-inset-bottom, 0px)); width: min(560px, calc(100vw - 24px));
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 16px 40px -12px rgba(0,0,0,.55); padding: 12px 14px; display: grid; gap: 10px; font-size: 13px; line-height: 1.45;
+}
+.newer-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.newer-actions .btn { flex: 1 1 auto; justify-content: center; }
 .toast {
   position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
   background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px;
@@ -793,6 +801,10 @@ dialog.sheet { width: min(420px, 100vw); }
 </dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="newer-bar" id="newerBar" role="status" hidden>
+  <span id="newerMsg"></span>
+  <div class="newer-actions"><button type="button" class="btn primary" id="newerLoad">Load the site version</button><button type="button" class="btn" id="newerKeep">Keep this device's</button></div>
+</div>
 
 <script>
 (() => {
@@ -850,6 +862,7 @@ const SAMPLE = (() => {
 const S = {
   settings: { name: "My Binder", color: "#1f3b73", cols: 3, rows: 3, finish: "leather" },
   cards: [],
+  meta: { published: 0, editedAt: 0 }, // website: which published version this copy came from, and when it was last changed here
 };
 const V = { cur: 0, side: "right", L: 1, P: 2, leaves: [], mobile: false, active: 0, zTop: 100, opened: false, readOnly: false };
 const U = { name: "", key: "" }; // website: the signed-in username
@@ -887,11 +900,13 @@ async function readLocal() {
   try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 let localTimer = 0;
-function saveLocalSoon() {
+// copy = true when saving a published binder onto this device (not an edit made here)
+function saveLocalSoon(copy) {
   clearTimeout(localTimer);
   if (readBlocked) return;
+  if (copy !== true) S.meta.editedAt = Date.now();
   localTimer = setTimeout(async () => {
-    const data = { settings: { ...S.settings }, cards: S.cards.filter(c => !c.sample).map(cleanCard) };
+    const data = { settings: { ...S.settings }, cards: S.cards.filter(c => !c.sample).map(cleanCard), published: S.meta.published || 0, editedAt: S.meta.editedAt || 0 };
     try { await IDB.set(LS_KEY, data); try { localStorage.removeItem(LS_KEY); } catch {} return; } catch {}
     try { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
     catch (e) { toast("Storage is full. Export a backup file to keep your binder safe."); }
@@ -2503,7 +2518,7 @@ async function fetchSeed(key) {
   let v = null;
   try {
     const r = await fetch("users/" + encodeURIComponent(key) + ".json", { cache: "no-cache" });
-    if (r.ok) { const j = await r.json(); v = { settings: j.settings || j.binder || null, cards: Array.isArray(j.cards) ? j.cards : [] }; }
+    if (r.ok) { const j = await r.json(); v = { settings: j.settings || j.binder || null, cards: Array.isArray(j.cards) ? j.cards : [], published: +j.published || 0 }; }
   } catch {}
   seedCache.set(key, v);
   return v;
@@ -2514,18 +2529,47 @@ async function loadUser(name, unlocked) {
   U.name = name; U.key = ukey(name); LS_KEY = "pocket-binder:user:" + U.key;
   try { localStorage.setItem(LAST_KEY, name); } catch {}
   V.readOnly = !unlocked;
-  let data = await readLocal(), fromSeed = false;
-  if (!data || (!data.cards?.length && !data.settings)) { const seed = await fetchSeed(U.key); if (seed) { data = seed; fromSeed = true; } }
-  S.settings = { ...DEFAULTS, name: `${name}'s Binder`, ...(data?.settings || {}) };
-  S.cards = data && data.cards?.length ? data.cards.map(c => ({ ...c, id: c.id || uid() })) : (data ? [] : SAMPLE.map(c => ({ ...c })));
-  // binder files from an export carry page/row/col instead of slot
-  const n = S.settings.cols * S.settings.rows;
-  S.cards.forEach((c, i) => { if (!Number.isInteger(c.slot)) c.slot = +c.page >= 1 ? (+c.page - 1) * n + ((+c.row || 1) - 1) * S.settings.cols + ((+c.col || 1) - 1) : i; });
-  if (fromSeed && unlocked) saveLocalSoon();
+  $("#newerBar").hidden = true;
+  let data = await readLocal(), fromSeed = false, newer = null;
+  const hadLocal = !!(data && (data.cards?.length || data.settings));
+  const seed = await fetchSeed(U.key);
+  if (!hadLocal) { if (seed) { data = seed; fromSeed = true; } }
+  else if (seed && seed.published > (data.published || 0)) {
+    // a newer version was published: take it if nothing was changed on this device, otherwise ask
+    if (!data.editedAt || data.editedAt <= (data.published || 0)) { data = seed; fromSeed = true; }
+    else newer = seed;
+  }
+  applyBinderData(data, name, fromSeed);
+  if (fromSeed && (unlocked || hadLocal)) saveLocalSoon(true);
   V.cur = 0; V.side = "right";
   geometry(); applyLook(); buildBook(); setChip(); updateUserUi();
   setTimeout(() => goTo(1, { side: "right" }), reduceMotion ? 50 : 500);
+  if (fromSeed && hadLocal) toast(`Loaded the newest version of ${name}'s binder`);
+  if (newer) { pendingNewer = newer; $("#newerMsg").textContent = `A newer version of ${name}'s binder is on the site, but this device has changes of its own.`; $("#newerBar").hidden = false; }
 }
+let pendingNewer = null;
+function applyBinderData(data, name, fromSeed) {
+  S.settings = { ...DEFAULTS, name: `${name}'s Binder`, ...(data?.settings || {}) };
+  S.cards = data && data.cards?.length ? data.cards.map(c => ({ ...c, id: c.id || uid() })) : (data ? [] : SAMPLE.map(c => ({ ...c })));
+  S.meta = { published: (data && data.published) || 0, editedAt: fromSeed ? 0 : ((data && data.editedAt) || 0) };
+  // binder files from an export carry page/row/col instead of slot
+  const n = S.settings.cols * S.settings.rows;
+  S.cards.forEach((c, i) => { if (!Number.isInteger(c.slot)) c.slot = +c.page >= 1 ? (+c.page - 1) * n + ((+c.row || 1) - 1) * S.settings.cols + ((+c.col || 1) - 1) : i; });
+}
+$("#newerLoad").onclick = () => {
+  if (!pendingNewer || !canEdit()) return;
+  applyBinderData(pendingNewer, U.name, true); pendingNewer = null;
+  saveLocalSoon(true);
+  $("#newerBar").hidden = true;
+  V.cur = 0; geometry(); applyLook(); buildBook(); setChip();
+  setTimeout(() => goTo(1, { side: "right" }), 300);
+  toast("Loaded the published version");
+};
+$("#newerKeep").onclick = () => {
+  // keep this device's copy, and stop asking about this published version
+  if (pendingNewer) { S.meta.published = pendingNewer.published; if (!V.readOnly) saveLocalSoon(); }
+  pendingNewer = null; $("#newerBar").hidden = true;
+};
 function updateUserUi() {
   if (!WEB) return;
   $("#userBtn").hidden = false;
@@ -2615,7 +2659,7 @@ $("#userForm").addEventListener("submit", async e => {
   }
   try { sessionStorage.setItem(stayKey(key), "1"); if ($("#uStay").checked) localStorage.setItem(stayKey(key), "1"); } catch {}
   $("#userDlg").close();
-  if (U.key === key) { V.readOnly = false; if (!(await readLocal())) saveLocalSoon(); updateUserUi(); toast("Editing unlocked"); }
+  if (U.key === key) { V.readOnly = false; if (!(await readLocal())) saveLocalSoon(true); updateUserUi(); toast("Editing unlocked"); }
   else await loadUser(uState.name, true);
 });
 $("#userBtn").onclick = () => openUser(V.readOnly && U.name ? "unlock" : "switch");
