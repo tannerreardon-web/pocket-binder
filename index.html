@@ -1,0 +1,2579 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f3b73">
+<meta name="description" content="A digital trading card binder. Scan your binder pages and flip through your cards.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pocket Binder">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body><title>Pocket Binder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen app. Toolbar on top, a 3D ring binder centered on a desk surface, pager below. */
+:root {
+  --bg: #dde2e6;
+  --desk-hi: #eef1f3;
+  --surface: #ffffff;
+  --surface-2: #f2f4f6;
+  --ink: #1a2026;
+  --muted: #5a6670;
+  --line: #c9d0d6;
+  --accent: #2d57c9;
+  --accent-ink: #ffffff;
+  --danger: #b4232f;
+  --ok: #1d7a4a;
+  --shadow: rgba(16, 24, 32, .28);
+  --page: #16181c;
+  --page-edge: #24272d;
+  --pocket: #1d2025;
+  --font-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Manrope", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --binder: #1f3b73;
+  --cover-ink: #f3f5f8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111417; --desk-hi: #1b2025; --surface: #1a1e23; --surface-2: #22272d;
+    --ink: #e7ebee; --muted: #97a1aa; --line: #2e353c; --accent: #86a2ff; --accent-ink: #0d1220;
+    --danger: #ff7a84; --ok: #5fd39a; --shadow: rgba(0, 0, 0, .6); color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111417; --desk-hi: #1b2025; --surface: #1a1e23; --surface-2: #22272d;
+  --ink: #e7ebee; --muted: #97a1aa; --line: #2e353c; --accent: #86a2ff; --accent-ink: #0d1220;
+  --danger: #ff7a84; --ok: #5fd39a; --shadow: rgba(0, 0, 0, .6); color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px;
+  overflow: hidden;
+}
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+#app { height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+
+/* ---------- Top bar ---------- */
+.topbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+  padding-block: 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--surface); position: relative; z-index: 20;
+}
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: 7px; flex: none; position: relative;
+  background: var(--binder); box-shadow: inset -6px 0 0 rgba(0,0,0,.25);
+}
+.brand-mark::after { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 3px;
+  background: repeating-linear-gradient(to bottom, #d7dbe0 0 4px, transparent 4px 8px); border-radius: 2px; }
+.brand h1 { font-family: var(--font-display); font-weight: 800; font-size: 18px; margin: 0; letter-spacing: -.01em; white-space: nowrap; }
+.brand .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-text { min-width: 0; display: grid; }
+.spacer { flex: 1 1 0; }
+.search { position: relative; flex: 0 1 240px; min-width: 150px; }
+.search input {
+  width: 100%; height: 36px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2);
+  padding: 0 14px 0 34px;
+}
+.search svg { position: absolute; left: 11px; top: 10px; width: 16px; height: 16px; color: var(--muted); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface);
+  display: inline-flex; align-items: center; gap: 7px; font-weight: 600; white-space: nowrap;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.btn:hover { background: var(--surface-2); }
+.btn:active { transform: translateY(1px); }
+.btn svg { width: 16px; height: 16px; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+.btn.ghost { border-color: transparent; background: transparent; }
+.btn.danger { color: var(--danger); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; }
+.status-chip { font-size: 11px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.status-chip i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.status-chip[data-mode="db"] i { background: var(--ok); }
+
+/* ---------- Stage ---------- */
+.stage {
+  position: relative; overflow: hidden; min-height: 0;
+  background:
+    radial-gradient(ellipse at 50% 40%, var(--desk-hi), transparent 70%),
+    var(--bg);
+  touch-action: none;
+}
+.book {
+  position: absolute; left: 50%; top: 50%;
+  width: calc(var(--bw) * 2); height: var(--bh);
+  margin-left: calc(var(--bw) * -1); margin-top: calc(var(--bh) / -2);
+  perspective: calc(var(--bw) * 4.2);
+  transition: transform .9s cubic-bezier(.65, 0, .35, 1), opacity .7s ease;
+}
+.book.intro { opacity: 0; transform: translateX(var(--x0)) translateY(40px) scale(.92) !important; }
+.book::before { /* ground shadow */
+  content: ""; position: absolute; left: 6%; right: 6%; bottom: -5%; height: 12%;
+  background: radial-gradient(ellipse at center, var(--shadow), transparent 70%); filter: blur(10px);
+  transition: left .9s, right .9s; z-index: 0;
+}
+.book:not(.is-open)::before { left: 53%; right: 3%; }
+
+.board {
+  position: absolute; top: 0; width: var(--bw); height: var(--bh);
+  background-color: var(--binder);
+  background-image: var(--finish-img);
+  background-size: var(--finish-size);
+  border-radius: 5px 16px 16px 5px;
+}
+.base-back { left: var(--bw); z-index: 1;
+  box-shadow: 0 2px 0 rgba(0,0,0,.25), 0 18px 40px -10px var(--shadow), inset 0 0 0 1px rgba(255,255,255,.06);
+  filter: brightness(.82);
+}
+.base-back .inner-note {
+  position: absolute; right: 10%; bottom: 8%; left: 14%; text-align: right; color: var(--cover-ink); opacity: .55;
+  font-family: var(--font-mono); font-size: max(10px, calc(var(--bw) * .03));
+}
+
+.leaf {
+  position: absolute; left: var(--bw); top: var(--bp); width: var(--pw); height: var(--ph);
+  transform-origin: left center; transform-style: preserve-3d;
+  transition: transform .9s cubic-bezier(.645, .045, .355, 1);
+}
+.leaf.cover { top: 0; width: var(--bw); height: var(--bh); transition-duration: 1.35s; }
+.leaf.flipped { transform: rotateY(-180deg); }
+.face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.face.back { transform: rotateY(180deg); }
+
+/* cover */
+.cover .face.front { border-radius: 5px 16px 16px 5px; background-color: var(--binder); background-image: var(--finish-img); background-size: var(--finish-size);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), inset 12px 0 18px -8px rgba(0,0,0,.45); }
+.cover .face.back { border-radius: 16px 5px 5px 16px; background-color: var(--binder); background-image: var(--finish-img); background-size: var(--finish-size); }
+.cover .face.back::after { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,.28); box-shadow: inset -18px 0 24px -10px rgba(0,0,0,.5); pointer-events: none; }
+.cover-stitch { position: absolute; inset: 4.5%; border: 2px dashed color-mix(in oklab, var(--cover-ink) 28%, transparent); border-radius: 10px; pointer-events: none; }
+.cover-label {
+  position: absolute; left: 14%; right: 22%; top: 34%; padding: 6% 7%;
+  color: var(--cover-ink); border-radius: 10px;
+  background: color-mix(in oklab, var(--binder) 82%, black);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.12);
+}
+.cover-label .eyebrow { font-family: var(--font-mono); font-size: max(9px, calc(var(--bw) * .03)); letter-spacing: .14em; text-transform: uppercase; opacity: .7; }
+.cover-label .name { font-family: var(--font-display); font-weight: 800; font-size: max(16px, calc(var(--bw) * .085)); line-height: 1.02; margin-top: 6px; text-wrap: balance; overflow-wrap: anywhere; letter-spacing: -.01em; }
+.cover-label .meta { margin-top: 10px; font-size: max(10px, calc(var(--bw) * .032)); opacity: .8; font-variant-numeric: tabular-nums; }
+.strap {
+  position: absolute; top: -1px; bottom: -1px; right: 8%; width: 6.5%;
+  background: color-mix(in oklab, var(--binder) 60%, black);
+  box-shadow: inset 2px 0 3px rgba(255,255,255,.12), inset -2px 0 3px rgba(0,0,0,.35), -3px 0 8px rgba(0,0,0,.25);
+}
+.strap::before, .strap::after { content: ""; position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(255,255,255,.22); }
+.strap::before { left: 18%; } .strap::after { right: 18%; }
+.open-hint {
+  position: absolute; left: 14%; bottom: 9%; color: var(--cover-ink); opacity: .7;
+  font-size: max(10px, calc(var(--bw) * .032)); font-weight: 600; letter-spacing: .04em;
+}
+.inside {
+  position: absolute; inset: 0; padding: 9% 10% 9% 9%; color: var(--cover-ink); z-index: 1;
+  display: flex; flex-direction: column; gap: 4%;
+}
+.inside h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: max(15px, calc(var(--bw) * .065)); letter-spacing: -.01em; }
+.inside .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.inside .stat { background: rgba(0,0,0,.25); border-radius: 8px; padding: 8% 10%; min-width: 0; }
+.inside .stat b { display: block; font-family: var(--font-mono); font-size: max(13px, calc(var(--bw) * .055)); font-variant-numeric: tabular-nums; }
+.inside .stat span { font-size: max(9px, calc(var(--bw) * .028)); opacity: .75; }
+.inside .sets { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: max(10px, calc(var(--bw) * .032)); min-height: 0; overflow: hidden; }
+.inside .sets li { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid rgba(255,255,255,.1); padding-bottom: 4px; }
+.inside .sets li span:last-child { font-family: var(--font-mono); opacity: .8; }
+.inside .note { margin-top: auto; font-size: max(10px, calc(var(--bw) * .03)); line-height: 1.45; background: rgba(255,255,255,.1); border-radius: 8px; padding: 6% 7%; }
+.inside .note b { display: block; margin-bottom: 3px; }
+
+/* pages */
+.pageface {
+  background: var(--page);
+  padding: var(--pad);
+  display: grid; grid-template-columns: repeat(var(--cols), var(--cw)); grid-auto-rows: var(--ch);
+  gap: var(--gap); justify-content: center; align-content: center;
+}
+.face.front.pageface { border-radius: 0 7px 7px 0; box-shadow: inset 14px 0 18px -12px rgba(0,0,0,.9), inset -1px 0 0 var(--page-edge); }
+.face.back.pageface { border-radius: 7px 0 0 7px; box-shadow: inset -14px 0 18px -12px rgba(0,0,0,.9), inset 1px 0 0 var(--page-edge); }
+.pnum { position: absolute; bottom: calc(var(--pad) * .28); font-family: var(--font-mono); font-size: max(8px, calc(var(--cw) * .075)); color: #6b717a; letter-spacing: .08em; }
+.front .pnum { right: calc(var(--pad) * .9); } .back .pnum { left: calc(var(--pad) * .9); }
+
+.pocket {
+  position: relative; border-radius: calc(var(--cw) * .05); background: var(--pocket);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 -3px 8px rgba(0,0,0,.4);
+  cursor: pointer;
+}
+.pocket::after { /* sleeve plastic */
+  content: ""; position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; z-index: 3;
+  background: linear-gradient(118deg, transparent 32%, rgba(255,255,255,.10) 44%, rgba(255,255,255,.02) 52%, transparent 60%);
+  border: 1px solid rgba(255,255,255,.07); border-top: 2px solid rgba(255,255,255,.12);
+}
+.pocket.empty .plus { position: absolute; inset: 0; display: grid; place-items: center; color: #4a5059; font-size: calc(var(--cw) * .1); font-weight: 600; opacity: 0; transition: opacity .15s; text-align: center; }
+.pocket.empty:hover .plus, .pocket.empty:focus-visible .plus { opacity: 1; }
+.pocket.drop-target { box-shadow: 0 0 0 3px #ffd666, inset 0 -3px 8px rgba(0,0,0,.4); }
+.pocket.lifting .card { opacity: .25; filter: grayscale(.6); }
+.pocket:not(.empty) { cursor: grab; }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 9000; pointer-events: none; will-change: transform; filter: drop-shadow(0 18px 24px rgba(0,0,0,.55)); }
+.drag-ghost .card { inset: 0; transform: none; transition: none; }
+.edge.hot { opacity: 1; color: #ffd666; background: linear-gradient(to right, rgba(255,214,102,.18), transparent); }
+.edge.next.hot { background: linear-gradient(to left, rgba(255,214,102,.18), transparent); }
+.pocket.pulse .card { animation: pulse 1.6s ease 2; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 214, 102, 0); } 40% { box-shadow: 0 0 0 4px rgba(255, 214, 102, .95); } }
+
+.card {
+  position: absolute; inset: 3%; border-radius: calc(var(--cw) * .045); overflow: hidden;
+  container-type: inline-size; background: #2a2e35;
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .25s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.pocket:hover .card { transition: transform .06s linear; }
+.card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card::after { /* glare */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.42), transparent 55%);
+  mix-blend-mode: overlay;
+}
+.pocket:hover .card::after { opacity: 1; }
+.card.foil::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: color-dodge; opacity: .34;
+  background: linear-gradient(115deg, #ff5f6d, #ffc371 18%, #47e891 36%, #3fc9ff 54%, #a66bff 72%, #ff5fb2 90%);
+  background-size: 300% 300%; background-position: var(--mx, 50%) var(--my, 50%);
+  transition: opacity .2s;
+}
+.pocket:hover .card.foil::before { opacity: .55; }
+
+/* generated card faces (used when a card has no photo) */
+.gen {
+  position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3cqw; padding: 5cqw;
+  background: linear-gradient(160deg, hsl(var(--h) 62% 58%), hsl(calc(var(--h) + 35) 55% 30%));
+  color: #fff;
+}
+.gen-top { display: flex; justify-content: space-between; align-items: baseline; gap: 4cqw; }
+.gen-name { font-family: var(--font-display); font-weight: 800; font-size: 9.5cqw; line-height: 1.05; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.gen-rar { font-size: 8cqw; flex: none; opacity: .9; }
+.gen-art {
+  flex: 1; border-radius: 3cqw; position: relative; overflow: hidden; display: grid; place-items: center;
+  background:
+    radial-gradient(circle at 30% 25%, hsl(calc(var(--h) + 18) 85% 72% / .85), transparent 48%),
+    radial-gradient(circle at 75% 80%, hsl(calc(var(--h) - 22) 70% 42% / .9), transparent 58%),
+    repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 6px, transparent 6px 12px),
+    hsl(var(--h) 45% 24%);
+  box-shadow: inset 0 0 0 1.2cqw rgba(255,255,255,.25);
+}
+.gen-art span { font-family: var(--font-display); font-weight: 800; font-size: 34cqw; color: rgba(255,255,255,.88); letter-spacing: -.04em; text-shadow: 0 3cqw 8cqw rgba(0,0,0,.35); }
+.gen-bot { display: flex; justify-content: space-between; gap: 3cqw; font-size: 6.2cqw; align-items: end; }
+.gen-set { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .9; font-weight: 600; }
+.gen-num { font-family: var(--font-mono); flex: none; opacity: .85; }
+
+/* spine rings */
+.spine {
+  position: absolute; left: calc(var(--bw) - var(--bp) * 1.1); width: calc(var(--bp) * 2.2); top: 3%; bottom: 3%;
+  z-index: 5000; pointer-events: none; opacity: 0; transition: opacity .5s ease .5s;
+}
+.book.is-open .spine { opacity: 1; }
+.spine .bar { position: absolute; left: 30%; right: 30%; top: 0; bottom: 0; border-radius: 4px;
+  background: linear-gradient(90deg, #5b6068, #c9ced6 45%, #7d838c 60%, #3c4047); box-shadow: 0 0 6px rgba(0,0,0,.5); }
+.spine .ring { position: absolute; left: -30%; right: -30%; height: calc(var(--bp) * 1.6); border-radius: 50%;
+  border: calc(var(--bp) * .32) solid #b8bec6; border-top-color: #e6e9ee; border-bottom-color: #7c828a;
+  box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+
+/* nav arrows on stage */
+.edge { position: absolute; top: 0; bottom: 0; width: 64px; z-index: 6000; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; color: var(--muted); opacity: .6; }
+.edge:hover { opacity: 1; }
+.edge svg { width: 28px; height: 28px; }
+.edge.prev { left: max(0px, env(safe-area-inset-left, 0px)); } .edge.next { right: max(0px, env(safe-area-inset-right, 0px)); }
+.edge[disabled] { opacity: 0; pointer-events: none; }
+
+/* ---------- Pager ---------- */
+.pager {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-top: 1px solid var(--line); background: var(--surface);
+}
+.pager .ind { font-family: var(--font-mono); font-size: 12px; color: var(--muted); min-width: 150px; text-align: center; font-variant-numeric: tabular-nums; }
+.pager input[type=range] { width: min(320px, 40vw); accent-color: var(--accent); }
+
+/* ---------- Dialogs ---------- */
+dialog {
+  border: 0; padding: 0; border-radius: 18px; background: var(--surface); color: var(--ink);
+  width: min(980px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,.6);
+}
+dialog::backdrop { background: rgba(8, 12, 18, .55); backdrop-filter: blur(3px); }
+.dlg { display: flex; flex-direction: column; max-height: calc(100dvh - 24px); }
+.dlg-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.dlg-head h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 20px; flex: 1; }
+.dlg-body { padding: 18px 20px; overflow: auto; display: grid; gap: 18px; min-height: 0; }
+.dlg-foot { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding: 14px 20px; border-top: 1px solid var(--line); align-items: center; }
+.dlg-foot .left { margin-right: auto; color: var(--muted); font-size: 12px; }
+.x { width: 34px; height: 34px; border-radius: 9px; border: 0; background: var(--surface-2); display: grid; place-items: center; }
+.x svg { width: 16px; height: 16px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > span, .label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.field input, .field select, .field textarea, textarea.code {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 9px 11px; min-width: 0;
+}
+textarea.code { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; resize: vertical; }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.help { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 0; max-width: 68ch; }
+.section-title { font-family: var(--font-display); font-weight: 700; font-size: 15px; margin: 0; }
+.panel { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; background: var(--surface); }
+
+/* card detail */
+.detail { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.big-card { position: relative; width: 100%; aspect-ratio: 63 / 88; max-width: 100%; }
+.big-card .card { inset: 0; border-radius: 4.5%; box-shadow: 0 20px 40px -12px rgba(0,0,0,.55); }
+.big-card:hover .card::after { opacity: 1; }
+.big-card:hover .card.foil::before { opacity: .55; }
+.loc { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+
+/* customize */
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.swatch { width: 38px; height: 38px; border-radius: 10px; border: 2px solid transparent; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+.swatch[aria-pressed="true"] { border-color: var(--ink); }
+.field input.colorpick, .colorpick { width: 48px; flex: none; height: 38px; border: 1px solid var(--line); border-radius: 10px; padding: 2px; background: var(--surface-2); }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg button { border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 12px; font-weight: 600; }
+.seg button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent); }
+.layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.lay { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px; display: grid; gap: 8px; justify-items: center; }
+.lay[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.lay .mini { display: grid; gap: 3px; padding: 6px; background: var(--page); border-radius: 5px; }
+.lay .mini i { width: 10px; height: 14px; border-radius: 2px; background: #3a3f47; display: block; }
+.lay b { font-family: var(--font-mono); font-size: 13px; }
+.lay small { color: var(--muted); font-size: 11px; }
+
+/* scan */
+.drop { border: 2px dashed var(--line); border-radius: 14px; padding: 22px; text-align: center; display: grid; gap: 8px; justify-items: center; background: var(--surface-2); }
+.drop.over { border-color: var(--accent); }
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.sp { border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: grid; gap: 10px; min-width: 0; }
+.sp-img { position: relative; background: #000; border-radius: 8px; overflow: hidden; }
+.sp-img img { display: block; width: 100%; max-height: 360px; object-fit: contain; }
+.sp-grid { position: absolute; display: grid; outline: 2px solid #ffd666; pointer-events: none; }
+.sp-grid i { border: 1px solid rgba(255, 214, 102, .85); display: block; }
+.sp-wrapimg { position: relative; display: block; width: 100%; }
+.sliders { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; font-size: 12px; color: var(--muted); }
+.sliders label { display: grid; gap: 2px; }
+.sliders input { width: 100%; accent-color: var(--accent); }
+.sp-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; }
+.sp-status { font-size: 12px; color: var(--muted); }
+.sp-status.ok { color: var(--ok); } .sp-status.err { color: var(--danger); }
+.review { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.rv { border: 1px solid var(--line); border-radius: 12px; padding: 8px; display: grid; gap: 6px; grid-template-columns: 64px minmax(0, 1fr); align-items: start; }
+.rv.off { opacity: .45; }
+.rv img { width: 64px; aspect-ratio: 63/88; object-fit: cover; border-radius: 4px; display: block; }
+.rv .fs { display: grid; gap: 4px; min-width: 0; }
+.rv input[type=text] { width: 100%; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); padding: 4px 6px; font-size: 12px; min-width: 0; }
+.rv .tag { font-family: var(--font-mono); font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; gap: 4px; align-items: center; grid-column: 1 / -1; }
+.radio-row { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; }
+.radio-row label { display: inline-flex; gap: 6px; align-items: center; }
+details.alt { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+details.alt summary { cursor: pointer; font-weight: 700; }
+details.alt[open] summary { margin-bottom: 12px; }
+.copyrow { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.progress { font-size: 13px; color: var(--muted); }
+
+.chk { position: absolute; z-index: 4; top: -4%; right: -6%; width: max(16px, calc(var(--cw) * .2)); height: max(16px, calc(var(--cw) * .2)); border-radius: 50%;
+  background: #ffcf4a; color: #2a1d00; font-weight: 800; font-size: max(10px, calc(var(--cw) * .13)); display: grid; place-items: center; box-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none; }
+.picker { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; }
+.picker-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.picker-head input, .picker-head select { height: 36px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 0 10px; min-width: 0; }
+.picker-head input { flex: 1 1 200px; }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 12px; }
+.pick { border: 2px solid transparent; border-radius: 10px; background: var(--surface-2); padding: 6px; display: grid; gap: 4px; text-align: left; }
+.pick:hover { border-color: var(--line); }
+.pick[aria-pressed="true"] { border-color: var(--accent); }
+.pick img { width: 100%; aspect-ratio: 63/88; object-fit: cover; border-radius: 6px; background: #222; display: block; }
+.pick b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick span { font-size: 11px; color: var(--muted); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick em { font-style: normal; font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.gi-missing li button { all: unset; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.gi-missing li button:focus-visible { outline: 2px solid var(--accent); }
+.gi-missing li.gi-sub { list-style: none; margin: 6px 0 0 -18px; font-weight: 700; font-size: 13px; }
+.user-btn .lock { font-size: 11px; font-weight: 700; color: var(--muted); border-left: 1px solid var(--line); padding-left: 7px; margin-left: 2px; }
+.user-btn .lock.editing { color: var(--ok); }
+body.view-only .edit-only { display: none !important; }
+#uKnown button { font-family: var(--font-mono); }
+.gi-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; border: 1px solid var(--line); }
+.gi-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s ease; }
+.gi-missing { margin: 0; padding: 12px 14px 12px 32px; border: 1px solid var(--line); border-radius: 12px; max-height: 220px; overflow: auto; display: grid; gap: 4px; font-size: 13px; }
+.gi-missing li span { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
+  background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px;
+  opacity: 0; transition: opacity .2s, transform .2s; z-index: 9999; pointer-events: none; max-width: calc(100vw - 32px); text-align: center;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 760px) {
+  .brand .sub, .status-chip { display: none; }
+  .search { order: 5; flex: 1 1 100%; }
+  .actions { flex: 1 1 auto; justify-content: flex-end; }
+  .btn .lbl { display: none; }
+  .btn.primary .lbl { display: inline; }
+  .detail { grid-template-columns: minmax(0, 1fr); }
+  .big-card { width: min(240px, 70vw); margin: 0 auto; }
+  .edge { width: 40px; }
+  .pager input[type=range] { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .book, .leaf, .leaf.cover, .card, .spine { transition-duration: .01s !important; transition-delay: 0s !important; }
+  .pocket.pulse .card { animation: none; outline: 3px solid #ffd666; }
+}
+</style>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div class="brand-text">
+        <h1>Pocket Binder</h1>
+        <span class="sub" id="subline">Your cards, page by page</span>
+      </div>
+    </div>
+    <span class="status-chip" id="saveChip" data-mode="local"><i></i><span>Starting…</span></span>
+    <button class="btn user-btn" id="userBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="userName">Sign in</span><span class="lock" id="userLock"></span></button>
+    <div class="spacer"></div>
+    <label class="search" for="searchInput">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="searchInput" type="search" placeholder="Find a card…" autocomplete="off" aria-label="Find a card by name, set or number">
+    </label>
+    <div class="actions">
+      <button class="btn primary" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg><span class="lbl">Scan pages</span></button>
+      <button class="btn" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Import</span></button>
+      <button class="btn" id="imagesBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Get images</span></button>
+      <button class="btn" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Export</span></button>
+      <button class="btn" id="customBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A5.6 5.6 0 0 0 22 10c0-4.4-4.5-8-10-8z"/></svg><span class="lbl">Customize</span></button>
+    </div>
+  </header>
+
+  <main class="stage" id="stage">
+    <div class="book intro" id="book"></div>
+    <button class="edge prev" id="edgePrev" aria-label="Previous page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m15 18-6-6 6-6"/></svg></button>
+    <button class="edge next" id="edgeNext" aria-label="Next page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button>
+  </main>
+
+  <nav class="pager" aria-label="Binder pages">
+    <button class="btn" id="prevBtn">Prev</button>
+    <input type="range" id="pageRange" min="0" max="1" value="0" aria-label="Jump to page">
+    <span class="ind" id="indicator">Closed</span>
+    <button class="btn" id="nextBtn">Next</button>
+    <button class="btn ghost" id="toggleBtn">Close binder</button>
+  </nav>
+</div>
+
+<!-- Card detail -->
+<dialog id="cardDlg" aria-labelledby="cardTitle">
+  <form class="dlg" id="cardForm" method="dialog">
+    <div class="dlg-head"><h2 id="cardTitle">Card</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <div class="detail">
+        <div>
+          <div class="big-card" id="bigCard"></div>
+          <p class="loc" id="cardLoc" style="text-align:center"></p>
+        </div>
+        <div style="display:grid; gap:12px; min-width:0">
+          <label class="field"><span>Card name</span><input id="fName" type="text" required></label>
+          <div class="row2">
+            <label class="field"><span>Set</span><input id="fSet" type="text"></label>
+            <label class="field"><span>Set code</span><input id="fSetCode" type="text" placeholder="MEW, M10, LOB"></label>
+            <label class="field"><span>Number</span><input id="fNum" type="text" placeholder="025/198"></label>
+          </div>
+          <div class="row2">
+            <label class="field"><span>Rarity</span><input id="fRarity" type="text" list="rarities"></label>
+            <label class="field"><span>Game</span><input id="fGame" type="text" placeholder="Pokémon, Magic, sports…"></label>
+          </div>
+          <label class="field"><span>Notes</span><textarea id="fNotes" rows="3" placeholder="Condition, grade, where you got it…"></textarea></label>
+          <label class="field"><span>Card image</span><input id="fImage" type="file" accept="image/*"></label>
+          <p class="help" style="margin-top:-6px">You can also paste a picture or picture link (Ctrl+V) while this window is open, or drag one onto the card.</p>
+          <div class="field" id="moveRow" hidden><span class="label">Move to page</span>
+            <div style="display:flex; gap:8px; flex-wrap:wrap">
+              <select id="fMovePage" aria-label="Page to move this card to" style="border:1px solid var(--line); border-radius:10px; background:var(--surface-2); padding:8px 10px; min-width:0"></select>
+              <button type="button" class="btn" id="moveBtn">Move card</button>
+            </div>
+          </div>
+          <div><button type="button" class="btn" id="findPicBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Find the right picture</button></div>
+          <p class="help" id="checkNote" hidden>This picture was a best guess and may be the wrong printing. Use Find the right picture to choose the exact one.</p>
+          <p class="help" id="sampleNote" hidden>This is a sample card. Saving it turns it into one of your cards and clears the other samples.</p>
+        </div>
+      </div>
+      <div class="picker" id="picker" hidden>
+        <div class="picker-head">
+          <input id="pickQ" type="search" placeholder="Card name" aria-label="Card name to search for">
+          <select id="pickGame" aria-label="Card game"><option value="auto">Any game</option><option value="pokemon">Pokémon</option><option value="magic">Magic</option><option value="ygo">Yu-Gi-Oh!</option></select>
+          <button type="button" class="btn primary" id="pickGo">Search</button>
+        </div>
+        <p class="progress" id="pickMsg"></p>
+        <div class="pick-grid" id="pickGrid"></div>
+        <p class="help" id="pickLinks"></p>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn danger" id="delBtn">Remove card</button>
+      <span class="left" id="cardHint"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="saveCardBtn">Save card</button>
+    </div>
+  </form>
+</dialog>
+<datalist id="rarities"><option>Common</option><option>Uncommon</option><option>Rare</option><option>Holo Rare</option><option>Ultra Rare</option><option>Secret Rare</option><option>Illustration Rare</option><option>Promo</option></datalist>
+
+<!-- Customize -->
+<dialog id="customDlg" aria-labelledby="customTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="customTitle">Customize binder</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <label class="field"><span>Binder name</span><input id="cName" type="text" maxlength="48"></label>
+      <div class="field"><span class="label">Cover color</span><div class="swatches" id="swatches"></div></div>
+      <div class="field"><span class="label">Cover finish</span><div class="seg" id="finishes"></div></div>
+      <div class="field"><span class="label">Pocket layout (across × down)</span><div class="layouts" id="layouts"></div>
+        <div class="row2" style="margin-top:6px; max-width:360px">
+          <label class="field"><span>Custom across</span><input id="cCols" type="number" min="1" max="6"></label>
+          <label class="field"><span>Custom down</span><input id="cRows" type="number" min="1" max="6"></label>
+        </div>
+        <p class="help">Changing the layout reflows your cards in order. Pocket 1 stays pocket 1.</p>
+      </div>
+      <div class="panel" id="sxPanel" hidden>
+        <p class="section-title">Scrydex card pictures (optional, paid)</p>
+        <p class="help">Scrydex has pictures for almost every Pokémon card. It needs your own <a href="https://scrydex.com/pricing" target="_blank" rel="noopener">Scrydex plan</a>, API key and team ID, which you'll find in the Scrydex Account Hub. Each card search uses 1 credit; saving pictures is free. Your key stays on this computer and is never put in exported binder files.</p>
+        <div class="row2">
+          <label class="field"><span>Team ID</span><input id="sxTeam" type="text" autocomplete="off" spellcheck="false"></label>
+          <label class="field"><span>API key</span><input id="sxKey" type="password" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <div class="radio-row">
+          <label><input type="radio" name="sxmode" value="fallback" checked> Only when the free sources can't find a card or aren't sure (saves credits)</label>
+          <label><input type="radio" name="sxmode" value="first"> Check Scrydex first for every Pokémon card</label>
+        </div>
+        <div class="seg">
+          <button type="button" class="btn" id="sxSave">Save key</button>
+          <button type="button" class="btn" id="sxTest">Test key (uses 1 credit)</button>
+          <button type="button" class="btn danger" id="sxClear">Remove key</button>
+        </div>
+        <p class="progress" id="sxMsg"></p>
+      </div>
+      <div class="panel">
+        <p class="section-title">Saving</p>
+        <p class="help" id="storageHelp"></p>
+        <div><button type="button" class="btn danger" id="clearBtn">Remove all cards</button></div>
+      </div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn primary" data-close>Done</button></div>
+  </div>
+</dialog>
+
+<!-- Scan -->
+<dialog id="scanDlg" aria-labelledby="scanTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="scanTitle">Scan binder pages</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="help">Take a straight-on photo of each binder page, one page per photo. Pocket Binder cuts each pocket out as the card's picture, and an AI reads the name, set and number. Nothing is sent anywhere until you choose how to identify the cards.</p>
+      <div class="row2" style="max-width:520px">
+        <label class="field"><span>Pages in the photos are</span><select id="sLayout"></select></label>
+      </div>
+      <label class="drop" id="dropZone" for="sFiles">
+        <b>Choose page photos</b>
+        <span class="help">or drop them here · JPG, PNG, WebP</span>
+        <input id="sFiles" type="file" accept="image/*" multiple style="max-width:100%">
+      </label>
+      <div class="photos" id="photos"></div>
+
+      <div class="panel" id="identifyPanel" hidden>
+        <p class="section-title">Identify the cards</p>
+        <p class="help" id="claudeHelp">Line the yellow grid up with the pockets on each photo, then pick how to read the cards.</p>
+        <div class="seg">
+          <button type="button" class="btn primary" id="askClaudeBtn" hidden>Identify with Claude</button>
+          <button type="button" class="btn" id="stopClaudeBtn" hidden>Stop</button>
+          <button type="button" class="btn" id="cropOnlyBtn">Just crop, I'll type names</button>
+        </div>
+        <p class="progress" id="claudeProgress"></p>
+        <details class="alt" id="altAi">
+          <summary>Use Claude.ai, ChatGPT or another AI instead</summary>
+          <div style="display:grid; gap:10px">
+            <p class="help">1. Copy this prompt. 2. Paste it into any AI chat and attach the same photos in the same order. 3. Paste the AI's reply below.</p>
+            <textarea class="code" id="altPrompt" rows="9" readonly></textarea>
+            <div class="copyrow"><button type="button" class="btn" id="copyAltBtn">Copy prompt</button></div>
+            <label class="field"><span>AI reply</span><textarea class="code" id="altReply" rows="6" placeholder='{"pages":[{"photo":1,"cards":[ … ]}]}'></textarea></label>
+            <div class="copyrow"><button type="button" class="btn primary" id="applyAltBtn">Use this reply</button></div>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel" id="reviewPanel" hidden>
+        <p class="section-title">Review before adding</p>
+        <p class="help">Fix anything the AI misread. Untick pockets you don't want added.</p>
+        <div class="review" id="review"></div>
+        <div class="radio-row" id="placeRow">
+          <label><input type="radio" name="place" value="pages" checked> Add as new pages, in photo order</label>
+          <label><input type="radio" name="place" value="fill"> Fill the next empty pockets</label>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <span class="left" id="scanCount"></span>
+      <button type="button" class="btn" data-close>Cancel</button>
+      <button type="button" class="btn primary" id="addScanBtn" disabled>Add to binder</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Import -->
+<dialog id="importDlg" aria-labelledby="importTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="importTitle">Import cards</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="help">Load a binder file you exported from Pocket Binder, or a card list an AI made for you. Card pictures come along when the file has them; cards without a picture get a printed placeholder.</p>
+      <label class="field"><span>Binder file (.json)</span><input id="iFile" type="file" accept=".json,application/json,text/plain"></label>
+      <label class="field"><span>Or paste the data</span><textarea class="code" id="iText" rows="8" placeholder='{"cards":[{"name":"…","set":"…","number":"…"}]}'></textarea></label>
+      <div class="radio-row">
+        <label><input type="radio" name="imode" value="add" checked> Add to this binder</label>
+        <label><input type="radio" name="imode" value="replace"> Replace this binder</label>
+      </div>
+      <details class="alt">
+        <summary>Make a card list with any AI, from photos</summary>
+        <div style="display:grid; gap:10px">
+          <p class="help">Paste this prompt into Claude.ai or another AI along with your page photos, then paste its reply above. Want the card pictures too? Use <b>Scan pages</b> instead, which crops them from your photos.</p>
+          <textarea class="code" id="iPrompt" rows="9" readonly></textarea>
+          <div class="copyrow"><button type="button" class="btn" id="copyIPromptBtn">Copy prompt</button></div>
+        </div>
+      </details>
+      <details class="alt">
+        <summary>File format</summary>
+        <pre class="code" style="margin:0; overflow:auto; font-family:var(--font-mono); font-size:12px; line-height:1.5; white-space:pre">{
+  "binder": { "name": "Trade Binder", "color": "#9b1c2c", "cols": 3, "rows": 3 },
+  "cards": [
+    { "name": "Card name", "set": "Set name", "number": "025/198",
+      "rarity": "Holo Rare", "game": "", "notes": "",
+      "page": 1, "row": 1, "col": 1,
+      "image": "data:image/jpeg;base64,…" }
+  ]
+}</pre>
+        <p class="help">Everything but <code>name</code> is optional. Position cards with <code>page</code>/<code>row</code>/<code>col</code> or a zero-based <code>slot</code>; cards without a position fill the next empty pockets. Pictures must be embedded as data URLs.</p>
+      </details>
+      <p class="progress" id="importMsg"></p>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="doImportBtn">Import</button></div>
+  </div>
+</dialog>
+
+<!-- Username + PIN (website only) -->
+<dialog id="userDlg" aria-labelledby="userTitle">
+  <form class="dlg" id="userForm" method="dialog" style="max-width:460px; margin:0 auto">
+    <div class="dlg-head"><h2 id="userTitle">Open a binder</h2><button type="button" class="x" id="userX" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <div id="uStepName" style="display:grid; gap:14px">
+        <p class="help">Enter a username to open its binder. Binders are saved on this device.</p>
+        <label class="field"><span>Username</span><input id="uName" type="text" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="32" placeholder="akaFlares"></label>
+        <div id="uKnown" class="seg"></div>
+      </div>
+      <div id="uStepPin" hidden style="display:grid; gap:14px">
+        <p class="help" id="uPinHelp"></p>
+        <label class="field"><span id="uPinLabel">PIN</span><input id="uPin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="12" pattern="[0-9]*"></label>
+        <label class="field" id="uPin2Row" hidden><span>Type the PIN again</span><input id="uPin2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="12" pattern="[0-9]*"></label>
+      </div>
+      <p class="progress" id="uMsg"></p>
+    </div>
+    <div class="dlg-foot">
+      <button type="button" class="btn" id="uBack" hidden>Back</button>
+      <button type="button" class="btn" id="uView" hidden>Just look</button>
+      <button type="submit" class="btn primary" id="uGo">Continue</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Get images -->
+<dialog id="imagesDlg" aria-labelledby="imagesTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="imagesTitle">Get card images</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="help">Pocket Binder looks up each card's official picture by its name, set and number, then saves it to the card. Pictures come from free card databases: the Pokémon TCG API and TCGdex for Pokémon, Scryfall for Magic: The Gathering, and YGOPRODeck for Yu-Gi-Oh!. Sports cards and other games aren't covered, so those keep their scans or placeholders. If you've added a Scrydex key in Customize, Pokémon cards can use Scrydex too.</p>
+      <div class="radio-row" id="giScope"></div>
+      <div class="row2" style="max-width:420px">
+        <label class="field"><span>Card game</span>
+          <select id="giGame">
+            <option value="auto">Work it out from each card</option>
+            <option value="pokemon">Pokémon</option>
+            <option value="magic">Magic: The Gathering</option>
+            <option value="ygo">Yu-Gi-Oh!</option>
+          </select>
+        </label>
+      </div>
+      <div class="gi-bar" aria-hidden="true"><i id="giFill"></i></div>
+      <p class="progress" id="giStatus"></p>
+      <ul class="gi-missing" id="giMissing" hidden></ul>
+    </div>
+    <div class="dlg-foot">
+      <span class="left" id="giCount"></span>
+      <button type="button" class="btn" id="giStop" hidden>Stop</button>
+      <button type="button" class="btn" data-close id="giClose">Close</button>
+      <button type="button" class="btn primary" id="giStart">Get images</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Export fallback -->
+<dialog id="exportDlg" aria-labelledby="exportTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="exportTitle">Binder file</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="help">Downloads aren't available here. Copy this text and save it as a <code>.json</code> file to back up or move your binder.</p>
+      <textarea class="code" id="exportText" rows="14" readonly></textarea>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn primary" id="copyExportBtn">Copy</button></div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const uid = () => "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const DESKTOP = location.protocol === "file:";          // PocketBinder.exe
+const WEB = !window.claude && !DESKTOP;                  // the GitHub Pages website
+const STANDALONE = DESKTOP || WEB;                       // not running inside claude.ai
+const reduceMotion =matchMedia("(prefers-reduced-motion: reduce)").matches;
+const canHover = matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+const LAYOUTS = [
+  { cols: 2, rows: 2, note: "4-pocket" },
+  { cols: 3, rows: 3, note: "9-pocket" },
+  { cols: 4, rows: 3, note: "12-pocket wide" },
+  { cols: 3, rows: 4, note: "12-pocket tall" },
+  { cols: 4, rows: 4, note: "16-pocket" },
+];
+const COLORS = [
+  ["Midnight", "#1f3b73"], ["Crimson", "#9b1c2c"], ["Forest", "#1f5a3d"], ["Graphite", "#2b2f36"],
+  ["Royal purple", "#4b2a7a"], ["Sunburst", "#d98a1c"], ["Teal", "#0f6b6e"], ["Bubblegum", "#d9668f"], ["Arctic", "#cfd8e0"],
+];
+const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E")`;
+const FINISHES = {
+  leather: { label: "Leather", img: `${GRAIN}, radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.14), transparent 60%), radial-gradient(ellipse at 80% 110%, rgba(0,0,0,.35), transparent 60%)`, size: "180px 180px, 100% 100%, 100% 100%" },
+  matte: { label: "Matte", img: `radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.08), transparent 70%)`, size: "100% 100%" },
+  gloss: { label: "Gloss", img: `linear-gradient(125deg, rgba(255,255,255,.0) 20%, rgba(255,255,255,.28) 34%, rgba(255,255,255,.05) 44%, rgba(255,255,255,0) 60%), linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.18))`, size: "100% 100%, 100% 100%" },
+  carbon: { label: "Carbon weave", img: `repeating-linear-gradient(45deg, rgba(0,0,0,.28) 0 3px, rgba(255,255,255,.05) 3px 6px), repeating-linear-gradient(-45deg, rgba(0,0,0,.22) 0 3px, rgba(255,255,255,.04) 3px 6px)`, size: "auto, auto" },
+};
+const FOIL_RE = /holo|foil|ultra|secret|illustration|hyper|special|gold|rainbow|full art|alt art|parallel|refractor|prizm/i;
+
+/* ---------------- Sample collection (invented cards) ---------------- */
+const SAMPLE = (() => {
+  const A = "Ashfall Expedition", T = "Tideborne", N = "Neon Grove";
+  const rows = [
+    [0, "Emberkit", A, "004/165", "Common"], [1, "Cinder Lynx", A, "011/165", "Uncommon"], [2, "Volcanic Drake", A, "023/165", "Holo Rare"],
+    [3, "Ashwing Owl", A, "031/165", "Common"], [4, "Magma Tortoise", A, "038/165", "Rare"], [5, "Obsidian Golem", A, "052/165", "Ultra Rare"],
+    [6, "Smolder Pup", A, "007/165", "Common"], [8, "Flarebloom", A, "061/165", "Uncommon"],
+    [9, "Kelpie Fawn", T, "003/142", "Common"], [10, "Reefguard", T, "014/142", "Uncommon"], [11, "Tidal Wyrm", T, "027/142", "Holo Rare"],
+    [12, "Pearl Siren", T, "033/142", "Rare"], [13, "Brine Crab", T, "040/142", "Common"], [15, "Abyssal Leviathan", T, "141/142", "Secret Rare"],
+    [16, "Coral Sprite", T, "019/142", "Common"], [17, "Riptide Otter", T, "022/142", "Uncommon"],
+    [18, "Mosslit Hare", N, "002/120", "Common"], [19, "Glowcap Shroom", N, "009/120", "Common"], [20, "Circuit Moth", N, "017/120", "Uncommon"],
+    [21, "Neon Vinebeast", N, "044/120", "Holo Rare"], [22, "Prism Stag", N, "058/120", "Ultra Rare"], [23, "Lumen Beetle", N, "025/120", "Common"],
+    [24, "Static Fox", N, "030/120", "Rare"], [26, "Pixel Sprout", N, "012/120", "Common"],
+  ];
+  return rows.map(([slot, name, set, number, rarity]) => ({ id: "s_" + slot, slot, name, set, number, rarity, game: "Sample", notes: "", image: "", sample: true }));
+})();
+
+/* ---------------- State ---------------- */
+const S = {
+  settings: { name: "My Binder", color: "#1f3b73", cols: 3, rows: 3, finish: "leather" },
+  cards: [],
+};
+const V = { cur: 0, side: "right", L: 1, P: 2, leaves: [], mobile: false, active: 0, zTop: 100, opened: false, readOnly: false };
+const U = { name: "", key: "" }; // website: the signed-in username
+const store = { mode: "memory", col: null, queues: new Map(), sample: null, canImages: false };
+
+const per = () => S.settings.cols * S.settings.rows;
+const isSample = () => S.cards.length > 0 && S.cards.every(c => c.sample);
+const slotMap = () => { const m = new Map(); for (const c of S.cards) m.set(c.slot, c); return m; };
+
+/* ---------------- Persistence ---------------- */
+let LS_KEY = "pocket-binder:v1"; // on the website this becomes one key per username
+// IndexedDB holds the binder locally (much more room for card pictures than localStorage)
+const IDB = {
+  p: null,
+  open() {
+    if (!this.p) this.p = new Promise((res, rej) => {
+      try { const r = indexedDB.open("pocket-binder", 1); r.onupgradeneeded = () => r.result.createObjectStore("kv"); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }
+      catch (e) { rej(e); }
+    });
+    return this.p;
+  },
+  async get(k) { const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction("kv").objectStore("kv").get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); },
+  async set(k, v) { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction("kv", "readwrite"); tx.objectStore("kv").put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); }); },
+};
+// A big binder (lots of pictures) can take several seconds to read. If the read doesn't finish,
+// saving is blocked for this visit so the saved binder is never replaced by an empty one.
+let readBlocked = false;
+async function readLocal() {
+  const TIMEOUT = Symbol("timeout");
+  try {
+    const v = await Promise.race([IDB.get(LS_KEY), sleep(25000).then(() => TIMEOUT)]);
+    if (v === TIMEOUT) { readBlocked = true; toast("Your saved binder is taking too long to load. Close and reopen the app; nothing will be overwritten."); return null; }
+    if (v) return v;
+  } catch {}
+  try { const raw = localStorage.getItem(LS_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+let localTimer = 0;
+function saveLocalSoon() {
+  clearTimeout(localTimer);
+  if (readBlocked) return;
+  localTimer = setTimeout(async () => {
+    const data = { settings: { ...S.settings }, cards: S.cards.filter(c => !c.sample).map(cleanCard) };
+    try { await IDB.set(LS_KEY, data); try { localStorage.removeItem(LS_KEY); } catch {} return; } catch {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+    catch (e) { toast("Storage is full. Export a backup file to keep your binder safe."); }
+  }, 400);
+}
+function cleanCard(c) {
+  return { id: c.id, slot: c.slot, name: c.name || "", set: c.set || "", setCode: c.setCode || "", number: c.number || "", rarity: c.rarity || "", game: c.game || "", notes: c.notes || "", image: c.image || "", artCheck: !!c.artCheck, added: c.added || Date.now() };
+}
+function enqueue(id, fn) {
+  const prev = store.queues.get(id) || Promise.resolve();
+  const next = prev.then(fn).catch(onDbError);
+  store.queues.set(id, next);
+  return next;
+}
+function onDbError(e) {
+  const code = e && e.code;
+  if (code === "quota_exceeded") { toast("Your saved binder is full. Remove some cards or export a backup."); return; }
+  if (store.mode === "db") {
+    store.mode = "local"; setChip();
+    toast("Couldn't save to your account. Saving in this browser instead.");
+    saveLocalSoon();
+  }
+}
+function persistCard(c) {
+  if (c.sample) return;
+  if (store.mode === "db") enqueue(c.id, () => store.col.doc(c.id).set(cleanCard(c)));
+  else saveLocalSoon();
+}
+function persistDelete(id) {
+  if (store.mode === "db") enqueue(id, () => store.col.doc(id).delete());
+  else saveLocalSoon();
+}
+let setTimer = 0;
+function persistSettings() {
+  clearTimeout(setTimer);
+  setTimer = setTimeout(() => {
+    if (store.mode === "db") enqueue("settings", () => store.col.doc("settings").set({ ...S.settings }));
+    else saveLocalSoon();
+  }, 500);
+}
+function setChip() {
+  const chip = $("#saveChip"); chip.dataset.mode = store.mode;
+  const txt = WEB ? (U.name ? (V.readOnly ? `Viewing ${U.name}'s binder` : "Saved on this device") : "Not signed in")
+    : store.mode === "db" ? "Saved to your Claude account" : store.mode === "local" ? (DESKTOP ? "Saved on this computer" : "Saved in this browser") : "Not saved";
+  chip.querySelector("span").textContent = isSample() ? txt + " · showing samples" : txt;
+  $("#storageHelp").textContent = store.mode === "db"
+    ? "Your binder saves privately to your Claude account, so it's here whenever you open this page. Only you can see it."
+    : WEB
+      ? `This binder${U.name ? ` (${U.name})` : ""} saves on this device only. To move it to another phone or computer, export a binder file here and import it there. Adding this site to your home screen helps keep the data from being cleared.`
+    : DESKTOP
+      ? "Your binder saves on this computer automatically. Export a binder file now and then to keep a backup or move it to another device."
+      : "Your binder saves in this browser only. Export a binder file now and then to keep a backup or move it to another device.";
+}
+
+async function initStore() {
+  const cl = window.claude;
+  if (!cl || typeof cl.use !== "function") { store.mode = "local"; setChip(); return; }
+  // Claude features for scanning
+  cl.use("sample").then(async s => {
+    store.sample = s;
+    if (s) { const lim = await s.limits().catch(() => null); store.canImages = !!(lim && lim.images); }
+    updateScanUi();
+  }).catch(() => {});
+  try {
+    const [db, user] = await Promise.all([cl.use("db"), cl.use("user")]);
+    const id = user ? await user.id() : null;
+    if (!db || !id) { store.mode = "local"; setChip(); return; }
+    const col = db.collection("data/users/" + id);
+    const snap = await Promise.race([col.get(), sleep(10000).then(() => { throw { code: "timeout" }; })]);
+    store.col = col; store.mode = "db";
+    let settings = null; const cards = [];
+    for (const d of snap.docs) {
+      const data = d.data(); if (!data) continue;
+      if (d.id === "settings") settings = data; else if (d.id.startsWith("c_")) cards.push({ ...data, id: d.id });
+    }
+    if (settings || cards.length) {
+      if (settings) S.settings = { ...S.settings, ...settings };
+      S.cards = cards.length ? cards : [];
+      rebuildKeep();
+    } else if (!isSample() && S.cards.length) {
+      // first visit with the account: move this browser's binder up
+      for (const c of S.cards) persistCard(c);
+      persistSettings();
+    }
+    setChip();
+  } catch (e) {
+    store.mode = "local"; setChip();
+    if (e && e.code === "timeout") toast("Couldn't reach your saved binder. Changes are kept in this browser for now.");
+  }
+}
+
+/* ---------------- Card rendering ---------------- */
+function hueOf(str) { let h = 0; for (const ch of String(str)) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; }
+function mono(name) {
+  // first letter of the first two words, skipping brackets and other symbols
+  const w = String(name || "?").replace(/\(.*?\)/g, " ").trim().split(/\s+/).map(x => x.replace(/[^\p{L}\p{N}]/gu, "")).filter(Boolean);
+  if (!w.length) return "?";
+  return ((w[0][0] || "") + (w[1] ? w[1][0] : w[0][1] || "")).toUpperCase();
+}
+function rarGlyph(r) {
+  r = String(r || "").toLowerCase();
+  if (/secret|hyper|gold/.test(r)) return "✦✦"; if (/ultra|illustration|special|full art/.test(r)) return "✦";
+  if (/holo|foil|rare/.test(r)) return "★"; if (/uncommon/.test(r)) return "◆"; if (/common/.test(r)) return "●"; return "";
+}
+function genFace(c) {
+  const h = (hueOf(c.set || c.name) + hueOf(c.name) % 24) % 360;
+  return `<div class="gen" style="--h:${h}"><div class="gen-top"><span class="gen-name">${esc(c.name || "Unnamed card")}</span><span class="gen-rar">${rarGlyph(c.rarity)}</span></div><div class="gen-art"><span>${esc(mono(c.name))}</span></div><div class="gen-bot"><span class="gen-set">${esc(c.set || "")}</span><span class="gen-num">${esc(c.number || "")}</span></div></div>`;
+}
+function safeImg(src) { return /^(data:image\/|blob:|https:\/\/)/i.test(src || "") ? src : ""; }
+function cardHTML(c) {
+  const foil = FOIL_RE.test(c.rarity || "") ? " foil" : "";
+  const src = safeImg(c.image);
+  const inner = src ? `<img src="${esc(src)}" alt="${esc(c.name)}" data-cid="${esc(c.id)}" draggable="false">` : genFace(c);
+  return `<div class="card${foil}">${inner}</div>`;
+}
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t && t.tagName === "IMG" && t.dataset.alt) { const a = t.dataset.alt; delete t.dataset.alt; t.src = a; return; }
+  if (t && t.tagName === "IMG" && t.dataset.cid) {
+    const c = S.cards.find(x => x.id === t.dataset.cid) || editing.card;
+    if (c) t.outerHTML = genFace(c);
+  }
+}, true);
+
+/* ---------------- Book geometry ---------------- */
+function geometry() {
+  const st = $("#stage").getBoundingClientRect();
+  const { cols, rows } = S.settings;
+  V.mobile = st.width < 720;
+  const availW = V.mobile ? st.width - 70 : st.width - 140;
+  const availH = st.height - 48;
+  // in card-width units
+  const kw = cols + 0.08 * (cols - 1) + 0.26;      // page width
+  const kh = rows * (88 / 63) + 0.08 * (rows - 1) + 0.26;
+  const bpU = 0.12;                                 // board overhang
+  const boardKW = kw + bpU, boardKH = kh + 2 * bpU;
+  const spreadKW = V.mobile ? boardKW : boardKW * 2;
+  let cw = Math.min(availW / spreadKW, availH / boardKH);
+  cw = Math.max(cw, 24);
+  const book = $("#book");
+  const set = (k, v) => book.style.setProperty(k, v + "px");
+  const pw = kw * cw, ph = kh * cw, bp = bpU * cw;
+  set("--cw", cw); set("--ch", cw * 88 / 63); set("--gap", cw * .08); set("--pad", cw * .13);
+  set("--pw", pw); set("--ph", ph); set("--bp", bp); set("--bw", pw + bp); set("--bh", ph + 2 * bp);
+  book.style.setProperty("--cols", cols);
+  V.bw = pw + bp;
+}
+function applyLook() {
+  const book = $("#book");
+  const f = FINISHES[S.settings.finish] || FINISHES.leather;
+  const root = document.documentElement.style;
+  root.setProperty("--binder", S.settings.color);
+  book.style.setProperty("--finish-img", f.img);
+  book.style.setProperty("--finish-size", f.size);
+  root.setProperty("--cover-ink", luminance(S.settings.color) > .55 ? "#1b2128" : "#f3f5f8");
+}
+function luminance(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return 0;
+  const n = parseInt(m[1], 16); const ch = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; });
+  return .2126 * ch[0] + .7152 * ch[1] + .0722 * ch[2];
+}
+
+/* ---------------- Book build ---------------- */
+function pageCount() {
+  const max = S.cards.reduce((m, c) => Math.max(m, c.slot), -1);
+  let P = Math.max(2, Math.ceil((max + 1) / per()) + 1);
+  if (P % 2) P++;
+  return P;
+}
+function buildBook() {
+  const book = $("#book");
+  V.P = pageCount(); V.L = 1 + V.P / 2;
+  V.cur = clamp(V.cur, 0, V.L);
+  book.innerHTML = "";
+  const back = document.createElement("div");
+  back.className = "board base-back";
+  back.innerHTML = `<div class="inner-note">${esc(S.settings.cols)}×${esc(S.settings.rows)} · ${V.P} pages</div>`;
+  book.appendChild(back);
+  V.leaves = [];
+  for (let i = 0; i < V.L; i++) {
+    const lf = document.createElement("div");
+    lf.className = "leaf" + (i === 0 ? " cover" : "");
+    lf.dataset.i = i;
+    if (i === 0) {
+      lf.innerHTML = `<div class="face front" id="coverFront"></div><div class="face back" id="coverBack"></div>`;
+    } else {
+      const pf = 2 * (i - 1), pb = pf + 1;
+      lf.innerHTML = `<div class="face front pageface" data-page="${pf}"></div><div class="face back pageface" data-page="${pb}"></div>`;
+    }
+    book.appendChild(lf); V.leaves.push(lf);
+  }
+  const spine = document.createElement("div");
+  spine.className = "spine";
+  const nR = S.settings.rows >= 4 ? 4 : 3;
+  spine.innerHTML = `<div class="bar"></div>` + Array.from({ length: nR }, (_, k) => `<div class="ring" style="top:calc(${((k + .5) / nR) * 100}% - var(--bp) * .8)"></div>`).join("");
+  book.appendChild(spine);
+  V.leaves.forEach((lf, i) => lf.classList.toggle("flipped", i < V.cur));
+  setLeafZ();
+  renderCover();
+  fillAround(true);
+  updatePos(true);
+  updatePager();
+}
+function renderCover() {
+  const n = S.cards.length;
+  const sets = new Map();
+  for (const c of S.cards) { const k = c.set || "No set"; sets.set(k, (sets.get(k) || 0) + 1); }
+  const f = $("#coverFront"), b = $("#coverBack");
+  if (!f) return;
+  f.innerHTML = `<div class="cover-stitch"></div><div class="strap"></div>
+    <div class="cover-label"><div class="eyebrow">${S.settings.cols}×${S.settings.rows} · ${per()}-pocket</div><div class="name">${esc(S.settings.name || "My Binder")}</div><div class="meta">${n} card${n === 1 ? "" : "s"} · ${sets.size} set${sets.size === 1 ? "" : "s"}</div></div>
+    <div class="open-hint">${V.cur === 0 && V.opened ? "Tap to open" : ""}</div>`;
+  const top = [...sets.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const foils = S.cards.filter(c => FOIL_RE.test(c.rarity || "")).length;
+  b.innerHTML = `<div class="inside"><h2>${esc(S.settings.name || "My Binder")}</h2>
+    <div class="stats"><div class="stat"><b>${n}</b><span>cards</span></div><div class="stat"><b>${sets.size}</b><span>sets</span></div><div class="stat"><b>${foils}</b><span>foils &amp; rares</span></div></div>
+    <ul class="sets">${top.map(([k, v]) => `<li><span>${esc(k)}</span><span>${v}</span></li>`).join("")}</ul>
+    ${isSample() ? `<div class="note"><b>These are sample cards.</b>Tap Scan pages to photograph your own binder. The samples clear when you add your first card.</div>` : n === 0 ? `<div class="note"><b>This binder is empty.</b>Scan your pages, import a file, or tap any pocket to add a card.</div>` : `<div class="note">Drag a card to move it. Hold it at the left or right edge to turn the page. Tap a card to see it up close.</div>`}
+  </div>`;
+}
+function pageHTML(p, map) {
+  const n = per(); let h = "";
+  for (let k = 0; k < n; k++) {
+    const slot = p * n + k; const c = map.get(slot);
+    h += c
+      ? `<div class="pocket" data-slot="${slot}" tabindex="0" role="button" aria-label="${esc(c.name)}">${cardHTML(c)}${c.artCheck && c.image ? `<span class="chk" title="This picture may be the wrong printing. Tap to check it.">?</span>` : ""}</div>`
+      : `<div class="pocket empty" data-slot="${slot}" tabindex="0" role="button" aria-label="Empty pocket, add a card"><span class="plus">+ Add</span></div>`;
+  }
+  return h + `<span class="pnum">${String(p + 1).padStart(2, "0")}</span>`;
+}
+function fillAround(force) {
+  const map = slotMap();
+  const lo = V.cur - 2, hi = V.cur + 2;
+  V.leaves.forEach((lf, i) => {
+    if (i === 0) return;
+    const near = i >= lo && i <= hi;
+    for (const face of lf.querySelectorAll(".pageface")) {
+      if (near && (force || face.dataset.filled !== "1")) { face.innerHTML = pageHTML(+face.dataset.page, map); face.dataset.filled = "1"; }
+      else if (!near && face.dataset.filled === "1") { face.innerHTML = `<span class="pnum">${String(+face.dataset.page + 1).padStart(2, "0")}</span>`; face.dataset.filled = "0"; }
+      else if (!near && !face.dataset.filled) { face.innerHTML = `<span class="pnum">${String(+face.dataset.page + 1).padStart(2, "0")}</span>`; face.dataset.filled = "0"; }
+    }
+  });
+}
+function refresh() {
+  // re-render after data change; grow book if needed
+  if (pageCount() !== V.P) { rebuildKeep(); return; }
+  renderCover(); fillAround(true); setChip();
+}
+function rebuildKeep(oldPer) {
+  // keep the visible page roughly in place across layout changes
+  const visPage = V.cur >= 1 ? Math.max(0, 2 * (V.cur - 1) - (V.side === "left" ? 1 : 0)) : -1;
+  if (oldPer && visPage >= 0) {
+    const np = Math.floor((visPage * oldPer) / per());
+    V.cur = Math.floor(np / 2) + 1; V.side = np % 2 ? "left" : "right";
+    if (np % 2) V.cur += 1;
+  }
+  geometry(); applyLook(); buildBook(); setChip();
+}
+
+/* ---------------- Flipping ---------------- */
+function setLeafZ() { V.leaves.forEach((lf, i) => { lf.style.zIndex = i < V.cur ? 10 + i : 10 + V.L - i; }); V.zTop = 100 + V.L; }
+function updatePos(instant) {
+  const book = $("#book"); const bw = V.bw || 0;
+  let x = 0;
+  if (V.cur === 0) x = -bw / 2;
+  else if (V.mobile) x = V.side === "left" ? bw / 2 : -bw / 2;
+  book.style.setProperty("--x0", x + "px");
+  if (instant) { const t = book.style.transition; book.style.transition = "none"; book.style.transform = `translateX(${x}px)`; book.offsetHeight; book.style.transition = t; }
+  else book.style.transform = `translateX(${x}px)`;
+  book.classList.toggle("is-open", V.cur > 0);
+}
+function goTo(target, opts = {}) {
+  target = clamp(target, 0, V.L);
+  if (opts.side) V.side = opts.side;
+  if (target === V.cur) { updatePos(); updatePager(); return Promise.resolve(); }
+  const stagger = reduceMotion ? 0 : (opts.stagger ?? 95);
+  const fwd = target > V.cur; const seq = [];
+  if (fwd) for (let i = V.cur; i < target; i++) seq.push(i); else for (let i = V.cur - 1; i >= target; i--) seq.push(i);
+  V.cur = target;
+  fillAround();
+  seq.forEach((i, k) => {
+    const run = () => { V.leaves[i].style.zIndex = ++V.zTop; V.leaves[i].classList.toggle("flipped", fwd); };
+    k === 0 ? run() : setTimeout(run, k * stagger);
+  });
+  updatePos(); updatePager(); renderCoverHint();
+  V.active++;
+  const dur = reduceMotion ? 30 : (seq.includes(0) ? 1400 : 950) + (seq.length - 1) * stagger;
+  return sleep(dur).then(() => { if (--V.active === 0) setLeafZ(); });
+}
+function renderCoverHint() { const h = $("#coverFront .open-hint"); if (h) h.textContent = V.cur === 0 && V.opened ? "Tap to open" : ""; }
+function next() {
+  if (V.mobile) {
+    if (V.cur === 0) return goTo(1, { side: "right" });
+    if (V.side === "left") { V.side = "right"; updatePos(); updatePager(); return; }
+    if (V.cur < V.L) return goTo(V.cur + 1, { side: "left" });
+    return;
+  }
+  return goTo(V.cur + 1);
+}
+function prev() {
+  if (V.mobile) {
+    if (V.cur === 0) return;
+    if (V.side === "right") {
+      if (V.cur === 1) return goTo(0, { side: "right" });
+      V.side = "left"; updatePos(); updatePager(); return;
+    }
+    return goTo(V.cur - 1, { side: "right" });
+  }
+  return goTo(V.cur - 1);
+}
+function updatePager() {
+  const { cur, L, P } = V;
+  let txt;
+  if (cur === 0) txt = "Closed";
+  else {
+    const left = cur === 1 ? "Inside cover" : `Page ${2 * cur - 2}`;
+    const right = cur === L ? "Back cover" : `Page ${2 * cur - 1}`;
+    if (V.mobile) txt = (V.side === "left" ? left : right) + ` of ${P}`;
+    else txt = cur === 1 ? `Page 1 of ${P}` : cur === L ? `Page ${P} of ${P}` : `Pages ${2 * cur - 2}–${2 * cur - 1} of ${P}`;
+  }
+  $("#indicator").textContent = txt;
+  const atEnd = V.mobile ? (cur === L && V.side === "right") : cur === L;
+  $("#nextBtn").disabled = atEnd; $("#edgeNext").disabled = atEnd;
+  $("#prevBtn").disabled = cur === 0; $("#edgePrev").disabled = cur === 0;
+  $("#toggleBtn").textContent = cur === 0 ? "Open binder" : "Close binder";
+  const r = $("#pageRange"); r.max = L; r.value = cur;
+}
+
+/* ---------------- Interactions on the book ---------------- */
+const book = $("#book");
+book.addEventListener("click", e => {
+  if (V.cur === 0 && e.target.closest(".cover")) { next(); return; }
+  const pk = e.target.closest(".pocket");
+  if (pk) { openCard(+pk.dataset.slot); return; }
+});
+book.addEventListener("keydown", e => {
+  const pk = e.target.closest(".pocket");
+  if (pk && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCard(+pk.dataset.slot); }
+});
+if (canHover) {
+  book.addEventListener("pointermove", e => {
+    const pk = e.target.closest(".pocket:not(.empty)"); if (!pk) return;
+    const card = pk.querySelector(".card"); const r = pk.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+    card.style.setProperty("--rx", ((.5 - py) * 16).toFixed(2) + "deg");
+    card.style.setProperty("--ry", ((px - .5) * 18).toFixed(2) + "deg");
+    card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
+    card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
+  });
+  book.addEventListener("pointerout", e => {
+    const pk = e.target.closest(".pocket"); if (!pk || pk.contains(e.relatedTarget)) return;
+    const card = pk.querySelector(".card"); if (card) { card.style.removeProperty("--rx"); card.style.removeProperty("--ry"); }
+  });
+}
+// Move a card to another pocket; a card already there swaps into the old pocket
+function moveCard(from, to) {
+  if (from === to) return false;
+  const map = slotMap(); const a = map.get(from), b = map.get(to);
+  if (!a) return false;
+  a.slot = to; if (b) b.slot = from;
+  persistCard(a); if (b) persistCard(b);
+  refresh();
+  return true;
+}
+
+/* Drag and drop that works across pages.
+   Mouse: press on a card and move. Touch: press and hold a card for a moment, then move.
+   Carry the card to the left or right edge of the binder to turn the page, then drop it in any pocket. */
+const drag = { pending: null, on: false, from: -1, ghost: null, target: null, edgeTimer: 0, edgeDir: 0, holdTimer: 0, justEnded: 0 };
+function pocketAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const pk = el && el.closest ? el.closest(".pocket") : null;
+  return pk && book.contains(pk) ? pk : null;
+}
+function markSource() { $$(".pocket.lifting").forEach(p => p.classList.remove("lifting")); const s = book.querySelector(`.pocket[data-slot="${drag.from}"]`); if (s) s.classList.add("lifting"); }
+function beginDrag(p) {
+  const src = book.querySelector(`.pocket[data-slot="${p.slot}"]`); if (!src) return;
+  const r = src.getBoundingClientRect();
+  drag.on = true; drag.from = p.slot; drag.dx = p.x - r.left; drag.dy = p.y - r.top;
+  const g = document.createElement("div");
+  g.className = "drag-ghost"; g.style.width = r.width + "px"; g.style.height = r.height + "px";
+  g.innerHTML = src.querySelector(".card").outerHTML;
+  document.body.appendChild(g); drag.ghost = g;
+  document.body.classList.add("dragging");
+  markSource(); moveGhost(p.x, p.y);
+  if (navigator.vibrate) try { navigator.vibrate(15); } catch {}
+}
+function moveGhost(x, y) {
+  drag.ghost.style.transform = `translate(${x - drag.dx}px, ${y - drag.dy}px) rotate(-4deg) scale(1.06)`;
+  const pk = pocketAt(x, y);
+  if (pk !== drag.target) { if (drag.target) drag.target.classList.remove("drop-target"); drag.target = pk; if (pk && +pk.dataset.slot !== drag.from) pk.classList.add("drop-target"); }
+  // turn the page when the card is held near an edge
+  const st = $("#stage").getBoundingClientRect();
+  const zone = V.mobile ? 32 : Math.max(56, st.width * .09);
+  let dir = x < st.left + zone ? -1 : x > st.right - zone ? 1 : 0;
+  // a drag never closes the binder or turns back to the inside cover
+  if (dir < 0 && (V.mobile ? V.cur <= 1 && V.side === "right" : V.cur <= 1)) dir = 0;
+  if (dir > 0 && (V.mobile ? V.cur === V.L && V.side === "right" : V.cur >= V.L)) dir = 0;
+  if (dir !== drag.edgeDir) {
+    drag.edgeDir = dir; clearTimeout(drag.edgeTimer);
+    $("#edgePrev").classList.toggle("hot", dir < 0); $("#edgeNext").classList.toggle("hot", dir > 0);
+    if (dir) {
+      const turn = () => {
+        if (!drag.on || drag.edgeDir !== dir) return;
+        const stop = dir < 0 ? (V.mobile ? V.cur <= 1 && V.side === "right" : V.cur <= 1) : (V.mobile ? V.cur === V.L && V.side === "right" : V.cur >= V.L);
+        if (stop) return;
+        (dir > 0 ? next() : prev()); setTimeout(markSource, 60); drag.edgeTimer = setTimeout(turn, 1100);
+      };
+      drag.edgeTimer = setTimeout(turn, 500);
+    }
+  }
+}
+function endDrag(drop) {
+  clearTimeout(drag.edgeTimer); clearTimeout(drag.holdTimer);
+  const was = drag.on; drag.pending = null;
+  if (!was) return;
+  const target = drag.target, from = drag.from;
+  drag.on = false; drag.edgeDir = 0; drag.target = null;
+  if (drag.ghost) drag.ghost.remove(); drag.ghost = null;
+  document.body.classList.remove("dragging");
+  $("#edgePrev").classList.remove("hot"); $("#edgeNext").classList.remove("hot");
+  $$(".pocket.drop-target, .pocket.lifting").forEach(p => p.classList.remove("drop-target", "lifting"));
+  drag.justEnded = Date.now();
+  if (drop && target) {
+    const to = +target.dataset.slot;
+    if (moveCard(from, to)) {
+      const n = per(), p = Math.floor(to / n) + 1;
+      toast(Math.floor(from / n) + 1 !== p ? `Moved to page ${p}` : "Card moved");
+    }
+  }
+}
+book.addEventListener("pointerdown", e => {
+  if (e.button !== 0 || drag.on || V.readOnly) return;
+  const pk = e.target.closest(".pocket:not(.empty)"); if (!pk) return;
+  const p = { slot: +pk.dataset.slot, x: e.clientX, y: e.clientY, type: e.pointerType, id: e.pointerId };
+  drag.pending = p;
+  if (p.type !== "mouse") drag.holdTimer = setTimeout(() => { if (drag.pending === p) { beginDrag(p); } }, 380);
+});
+window.addEventListener("pointermove", e => {
+  const p = drag.pending;
+  if (drag.on) { e.preventDefault(); moveGhost(e.clientX, e.clientY); return; }
+  if (!p || e.pointerId !== p.id) return;
+  const d = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+  if (p.type === "mouse" && d > 6) { beginDrag({ ...p, x: p.x, y: p.y }); if (drag.on) moveGhost(e.clientX, e.clientY); }
+  else if (p.type !== "mouse" && d > 10) { clearTimeout(drag.holdTimer); drag.pending = null; } // it's a swipe, not a drag
+}, { passive: false });
+window.addEventListener("pointerup", e => { if (drag.on) { e.preventDefault(); endDrag(true); } else { clearTimeout(drag.holdTimer); drag.pending = null; } });
+window.addEventListener("pointercancel", () => endDrag(false));
+window.addEventListener("keydown", e => { if (e.key === "Escape" && drag.on) endDrag(false); });
+book.addEventListener("contextmenu", e => { if (drag.on || drag.pending) e.preventDefault(); });
+// don't open the card window when a drag just finished
+book.addEventListener("click", e => { if (Date.now() - drag.justEnded < 400) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+
+// swipe
+let sw = null;
+$("#stage").addEventListener("pointerdown", e => { if (e.pointerType !== "mouse") sw = { x: e.clientX, y: e.clientY, t: Date.now() }; });
+$("#stage").addEventListener("pointerup", e => {
+  if (!sw) return; if (drag.on || Date.now() - drag.justEnded < 400) { sw = null; return; }
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y; const dt = Date.now() - sw.t; sw = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.4 && dt < 700) { dx < 0 ? next() : prev(); suppressClick(); }
+});
+function suppressClick() { const h = e => { e.stopPropagation(); e.preventDefault(); }; window.addEventListener("click", h, { capture: true, once: true }); setTimeout(() => window.removeEventListener("click", h, { capture: true }), 350); }
+
+$("#nextBtn").onclick = next; $("#prevBtn").onclick = prev;
+$("#edgeNext").onclick = next; $("#edgePrev").onclick = prev;
+$("#toggleBtn").onclick = () => V.cur === 0 ? goTo(1, { side: "right" }) : goTo(0, { stagger: 70, side: "right" });
+$("#pageRange").addEventListener("input", e => goTo(+e.target.value, { stagger: 50, side: "right" }));
+document.addEventListener("keydown", e => {
+  if (document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+});
+let rzT = 0;
+addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { const wasMobile = V.mobile; geometry(); if (wasMobile !== V.mobile) V.side = "right"; updatePos(true); updatePager(); }, 120); });
+
+/* ---------------- Search ---------------- */
+$("#searchInput").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const q = e.target.value.trim().toLowerCase(); if (!q) return;
+  const hits = S.cards.filter(c => [c.name, c.set, c.number].some(v => String(v || "").toLowerCase().includes(q))).sort((a, b) => a.slot - b.slot);
+  if (!hits.length) { toast(`No card matches "${e.target.value.trim()}".`); return; }
+  // cycle through matches on repeated Enter
+  const idx = (searchState.q === q ? searchState.i + 1 : 0) % hits.length; searchState = { q, i: idx };
+  jumpToSlot(hits[idx].slot, hits.length > 1 ? `${idx + 1} of ${hits.length} matches` : "");
+});
+let searchState = { q: "", i: -1 };
+async function jumpToSlot(slot, msg) {
+  const p = Math.floor(slot / per());
+  let target, side;
+  if (p % 2 === 0) { target = p / 2 + 1; side = "right"; } else { target = (p - 1) / 2 + 2; side = "left"; }
+  await goTo(target, { stagger: 60, side });
+  const pk = book.querySelector(`.pocket[data-slot="${slot}"]`);
+  if (pk) { pk.classList.remove("pulse"); void pk.offsetWidth; pk.classList.add("pulse"); setTimeout(() => pk.classList.remove("pulse"), 3400); }
+  if (msg) toast(msg);
+}
+
+/* ---------------- Dialog helpers ---------------- */
+$$("dialog").forEach(d => {
+  d.addEventListener("click", e => { if (e.target.closest("[data-close]")) d.close(); if (e.target === d) d.close(); });
+});
+let toastT = 0;
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 3200); }
+async function copyText(text, ta) {
+  try { await navigator.clipboard.writeText(text); toast("Copied"); }
+  catch { if (ta) { ta.focus(); ta.select(); } toast("Press Ctrl+C (or ⌘C) to copy the selected text."); }
+}
+function clearSamplesIfNeeded() {
+  if (S.cards.some(c => c.sample)) { S.cards = S.cards.filter(c => !c.sample); return true; }
+  return false;
+}
+
+/* ---------------- Card dialog ---------------- */
+const editing = { slot: 0, card: null, image: null, delArmed: false };
+function openCard(slot, autoPick) {
+  const c = slotMap().get(slot) || null;
+  if (!c && !canEdit()) return;
+  editing.slot = slot; editing.card = c; editing.image = null; editing.delArmed = false;
+  if (pick.ctl) pick.ctl.abort();
+  $("#picker").hidden = true; $("#pickGrid").innerHTML = ""; $("#pickMsg").textContent = "";
+  $("#findPicBtn").hidden = !STANDALONE;
+  $("#moveRow").hidden = !c || !!c.sample;
+  if (c) {
+    const here = Math.floor(slot / per());
+    $("#fMovePage").innerHTML = Array.from({ length: V.P + 1 }, (_, i) => {
+      const used = S.cards.filter(x => Math.floor(x.slot / per()) === i).length, free = per() - used;
+      const label = i === V.P ? `Page ${i + 1} (new page)` : `Page ${i + 1}${i === here ? " (this page)" : ""} · ${free ? free + " empty" : "full"}`;
+      return `<option value="${i}" ${i === here ? "selected" : ""} ${free || i === here ? "" : "disabled"}>${label}</option>`;
+    }).join("");
+  }
+  $("#checkNote").hidden = !(c?.artCheck && c?.image);
+  $("#cardTitle").textContent = c ? c.name || "Card" : "Add a card";
+  $("#fName").value = c?.name || ""; $("#fSet").value = c?.set || ""; $("#fNum").value = c?.number || ""; $("#fSetCode").value = c?.setCode || "";
+  $("#fRarity").value = c?.rarity || ""; $("#fGame").value = c?.game || ""; $("#fNotes").value = c?.notes || ""; $("#fImage").value = "";
+  $("#delBtn").hidden = !c; $("#delBtn").textContent = "Remove card";
+  $("#sampleNote").hidden = !c?.sample;
+  $("#saveCardBtn").textContent = c ? "Save card" : "Add card";
+  const n = per(), p = Math.floor(slot / n), k = slot % n;
+  $("#cardLoc").textContent = `Page ${p + 1} · Row ${Math.floor(k / S.settings.cols) + 1} · Pocket ${k % S.settings.cols + 1}`;
+  $("#cardHint").textContent = "";
+  // view only: show the card, hide everything that changes it
+  const ro = V.readOnly;
+  $$("#cardForm input, #cardForm textarea, #cardForm select").forEach(el => { el.disabled = ro; });
+  $("#saveCardBtn").hidden = ro; if (ro) { $("#delBtn").hidden = true; $("#moveRow").hidden = true; $("#findPicBtn").hidden = true; }
+  if (ro) $("#cardHint").textContent = "View only";
+  $("#cardForm").querySelector('[data-close].btn').textContent = ro ? "Close" : "Cancel";
+  drawBig();
+  $("#cardDlg").showModal();
+  if (autoPick && STANDALONE && c && !ro) openPicker();
+}
+function draftCard() {
+  return { ...(editing.card || {}), id: editing.card?.id || "draft", name: $("#fName").value, set: $("#fSet").value, number: $("#fNum").value, rarity: $("#fRarity").value, image: editing.image ?? editing.card?.image ?? "" };
+}
+function drawBig() { $("#bigCard").innerHTML = cardHTML(draftCard()); }
+["#fName", "#fSet", "#fNum", "#fRarity"].forEach(s => $(s).addEventListener("input", () => { if (!editing.image && !editing.card?.image) drawBig(); else if (s === "#fRarity") drawBig(); }));
+$("#fImage").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { editing.image = await fileToCardImage(f); drawBig(); } catch { toast("That image couldn't be read. Try a JPG or PNG."); }
+});
+$("#bigCard").addEventListener("pointermove", e => {
+  const card = $("#bigCard .card"); if (!card) return; const r = e.currentTarget.getBoundingClientRect();
+  const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+  card.style.setProperty("--rx", ((.5 - py) * 20) + "deg"); card.style.setProperty("--ry", ((px - .5) * 22) + "deg");
+  card.style.setProperty("--mx", px * 100 + "%"); card.style.setProperty("--my", py * 100 + "%");
+});
+$("#bigCard").addEventListener("pointerleave", () => { const card = $("#bigCard .card"); if (card) { card.style.removeProperty("--rx"); card.style.removeProperty("--ry"); } });
+$("#cardForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!canEdit()) return;
+  const name = $("#fName").value.trim(); if (!name) { $("#fName").focus(); return; }
+  let c = editing.card;
+  const wasSample = !!c?.sample;
+  const cleared = clearSamplesIfNeeded();
+  if (!c || wasSample) { c = { id: uid(), slot: editing.slot, added: Date.now() }; S.cards.push(c); }
+  Object.assign(c, { name, set: $("#fSet").value.trim(), setCode: $("#fSetCode").value.trim(), number: $("#fNum").value.trim(), rarity: $("#fRarity").value.trim(), game: $("#fGame").value.trim(), notes: $("#fNotes").value.trim() });
+  if (editing.image) { c.image = editing.image; c.artCheck = false; } else if (wasSample) c.image = "";
+  delete c.sample;
+  persistCard(c);
+  $("#cardDlg").close();
+  refresh();
+  toast(cleared ? "Card saved. Sample cards removed." : "Card saved");
+});
+$("#delBtn").onclick = () => {
+  if (!canEdit()) return;
+  if (!editing.card) return;
+  if (!editing.delArmed) { editing.delArmed = true; $("#delBtn").textContent = "Click again to remove"; return; }
+  const c = editing.card; S.cards = S.cards.filter(x => x !== c);
+  if (!c.sample) persistDelete(c.id);
+  $("#cardDlg").close(); refresh(); toast("Card removed");
+};
+
+function loadImage(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
+async function fileToCardImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await loadImage(url);
+    const W = 360, H = 503, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const ar = W / H, iw = img.naturalWidth, ih = img.naturalHeight, iar = iw / ih;
+    let sw, sh, sx, sy;
+    if (iar > ar) { sh = ih; sw = sh * ar; sx = (iw - sw) / 2; sy = 0; } else { sw = iw; sh = sw / ar; sx = 0; sy = (ih - sh) / 2; }
+    c.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+    return c.toDataURL("image/jpeg", .82);
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* ---------------- Customize ---------------- */
+function openCustom() {
+  $("#cName").value = S.settings.name;
+  $("#cCols").value = S.settings.cols; $("#cRows").value = S.settings.rows;
+  renderCustom(); $("#clearBtn").textContent = "Remove all cards"; clearArmed = false;
+  $("#sxPanel").hidden = !DESKTOP;
+  if (DESKTOP) { const sx = sxConf(); $("#sxTeam").value = sx.team; $("#sxKey").value = sx.key; document.querySelector(`input[name="sxmode"][value="${sx.mode}"]`).checked = true; sxStatus(); }
+  $("#customDlg").showModal();
+}
+function renderCustom() {
+  const sw = $("#swatches");
+  sw.innerHTML = COLORS.map(([n, c]) => `<button type="button" class="swatch" style="background:${c}" data-color="${c}" aria-label="${n}" title="${n}" aria-pressed="${c.toLowerCase() === S.settings.color.toLowerCase()}"></button>`).join("")
+    + `<input type="color" class="colorpick" id="cColor" value="${esc(S.settings.color)}" aria-label="Pick any color">`;
+  $("#finishes").innerHTML = Object.entries(FINISHES).map(([k, f]) => `<button type="button" data-finish="${k}" aria-pressed="${k === S.settings.finish}">${f.label}</button>`).join("");
+  $("#layouts").innerHTML = LAYOUTS.map(l => `<button type="button" class="lay" data-cols="${l.cols}" data-rows="${l.rows}" aria-pressed="${l.cols === S.settings.cols && l.rows === S.settings.rows}">
+    <span class="mini" style="grid-template-columns:repeat(${l.cols}, 10px)">${"<i></i>".repeat(l.cols * l.rows)}</span><b>${l.cols}×${l.rows}</b><small>${l.note}</small></button>`).join("");
+}
+$("#customBtn").onclick = () => canEdit() && openCustom();
+// Website view-only mode: anyone on this device can look at a binder, only the PIN unlocks changes
+function canEdit(quiet) {
+  if (!V.readOnly) return true;
+  if (!quiet) { toast("View only. Enter the PIN to make changes."); openUser("unlock"); }
+  return false;
+}
+$("#cName").addEventListener("input", e => { S.settings.name = e.target.value; renderCover(); persistSettings(); });
+$("#swatches").addEventListener("click", e => { const b = e.target.closest("[data-color]"); if (b) setColor(b.dataset.color); });
+$("#swatches").addEventListener("input", e => { if (e.target.id === "cColor") setColor(e.target.value, true); });
+function setColor(c, fromPicker) {
+  S.settings.color = c; applyLook(); persistSettings();
+  $$("#swatches .swatch").forEach(s => s.setAttribute("aria-pressed", String(s.dataset.color.toLowerCase() === c.toLowerCase())));
+  if (!fromPicker) $("#cColor").value = c;
+}
+$("#finishes").addEventListener("click", e => { const b = e.target.closest("[data-finish]"); if (!b) return; S.settings.finish = b.dataset.finish; applyLook(); persistSettings(); $$("#finishes button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+$("#layouts").addEventListener("click", e => { const b = e.target.closest(".lay"); if (b) setLayout(+b.dataset.cols, +b.dataset.rows); });
+["#cCols", "#cRows"].forEach(s => $(s).addEventListener("change", () => setLayout(clamp(+$("#cCols").value || 3, 1, 6), clamp(+$("#cRows").value || 3, 1, 6))));
+function setLayout(cols, rows) {
+  if (cols === S.settings.cols && rows === S.settings.rows) return;
+  const oldPer = per();
+  S.settings.cols = cols; S.settings.rows = rows;
+  $("#cCols").value = cols; $("#cRows").value = rows;
+  persistSettings(); rebuildKeep(oldPer); renderCustom();
+  updateScanUi();
+}
+let clearArmed = false;
+$("#clearBtn").onclick = () => {
+  if (!clearArmed) { clearArmed = true; $("#clearBtn").textContent = `Click again to remove ${S.cards.length} cards`; return; }
+  const old = S.cards; S.cards = []; for (const c of old) if (!c.sample) persistDelete(c.id);
+  clearArmed = false; $("#clearBtn").textContent = "Remove all cards";
+  V.cur = Math.min(V.cur, 1); rebuildKeep(); toast("All cards removed");
+};
+
+/* ---------------- Export ---------------- */
+function exportData() {
+  return JSON.stringify({ app: "pocket-binder", version: 1, exported: new Date().toISOString(), binder: { ...S.settings },
+    cards: S.cards.filter(c => !c.sample).sort((a, b) => a.slot - b.slot).map(c => { const n = per(), p = Math.floor(c.slot / n), k = c.slot % n; const o = cleanCard(c); delete o.id; return { ...o, page: p + 1, row: Math.floor(k / S.settings.cols) + 1, col: k % S.settings.cols + 1 }; }) }, null, 1);
+}
+$("#exportBtn").onclick = async () => {
+  if (isSample() || !S.cards.length) { toast("Add some of your own cards first. Samples aren't exported."); return; }
+  const data = exportData();
+  const fname = (S.settings.name || "binder").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() + ".json";
+  let dl = null; try { dl = window.claude?.use ? await window.claude.use("downloads") : null; } catch {}
+  if (dl) {
+    try { await dl.save({ filename: fname || "binder.json", data }); toast("Binder file saved"); return; }
+    catch (e) { if (e?.code === "declined") return; }
+  }
+  if (STANDALONE) {
+    try {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([data], { type: "application/json" }));
+      a.download = fname || "binder.json"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast("Binder file saved to your Downloads folder"); return;
+    } catch {}
+  }
+  $("#exportText").value = data; $("#exportDlg").showModal();
+};
+$("#copyExportBtn").onclick = () => copyText($("#exportText").value, $("#exportText"));
+
+/* ---------------- Import ---------------- */
+const CARD_RULES = `- "name" is the card name exactly as printed, including any suffix such as ex, EX, GX, V, VMAX, VSTAR, or a prefix like "Dark" or "M".
+- "number" is the collector number exactly as printed, with its prefix and total: "025/198", "TG05/TG30", "SV049", "146". For Yu-Gi-Oh! use the set code printed under the artwork, like "LOB-EN005".
+- "setCode" is the set code or abbreviation printed on the card: for Pokémon the 2-4 letter code at the bottom left (for example "MEW", "OBF", "PAL"; leave "" on older cards that only have a symbol), for Magic the set code at the bottom left (for example "M10", "DMU"), for Yu-Gi-Oh! the part before the dash (for example "LOB").
+- "set" is the full official set name, for example "Scarlet & Violet—151", "Evolving Skies", "Base Set", "Magic 2010". Work it out from the set symbol or code if the name isn't printed.
+- "game" is the card game or sport, for example "Pokémon", "Magic: The Gathering", "Yu-Gi-Oh!", "Baseball".
+- Read the number and set code from the card itself. They matter most for finding the exact printing.
+- If you can't read a field, leave it as "" instead of guessing.`;
+function aiPrompt(cols, rows, nPhotos) {
+  const count = nPhotos ? `${nPhotos} photo${nPhotos > 1 ? "s" : ""}` : "photos";
+  return `I'm attaching ${count} of trading card binder pages, in order (the first photo is photo 1). Each page holds cards in a grid of ${cols} columns and ${rows} rows. Row 1 is the top row and column 1 is the left column, as seen in the photo.
+
+Identify every card. Reply with only JSON in this exact shape, no other text:
+{"pages":[{"photo":1,"cards":[{"row":1,"col":1,"empty":false,"name":"","set":"","setCode":"","number":"","rarity":"","game":""}]}]}
+
+Rules:
+- Give every pocket on every photo exactly one entry (${cols * rows} per photo).
+- Mark empty pockets with "empty": true and leave the other fields blank.
+${CARD_RULES}`;
+}
+function parseLoose(text) {
+  text = String(text || "").trim(); if (!text) throw new Error("empty");
+  try { return JSON.parse(text); } catch {}
+  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(text); if (fence) { try { return JSON.parse(fence[1]); } catch {} }
+  const a = text.search(/[\[{]/), b = Math.max(text.lastIndexOf("}"), text.lastIndexOf("]"));
+  if (a >= 0 && b > a) return JSON.parse(text.slice(a, b + 1));
+  throw new Error("nojson");
+}
+function toPages(obj) {
+  // normalise AI replies into [{photo, cards:[{row,col,...}]}]
+  if (Array.isArray(obj)) {
+    if (obj.length && Array.isArray(obj[0]?.cards)) return obj;
+    obj = { cards: obj };
+  }
+  if (Array.isArray(obj?.pages)) return obj.pages.map((p, i) => ({ photo: +p.photo || +p.page || i + 1, cards: p.cards || [] }));
+  if (Array.isArray(obj?.cards)) {
+    const by = new Map();
+    for (const c of obj.cards) { const ph = +c.photo || +c.page || 1; if (!by.has(ph)) by.set(ph, []); by.get(ph).push(c); }
+    return [...by.entries()].map(([photo, cards]) => ({ photo, cards }));
+  }
+  return [];
+}
+function openImport() {
+  $("#iText").value = ""; $("#iFile").value = ""; $("#importMsg").textContent = "";
+  $("#iPrompt").value = aiPrompt(S.settings.cols, S.settings.rows, 0);
+  $("#importDlg").showModal();
+}
+$("#importBtn").onclick = () => canEdit() && openImport();
+$("#copyIPromptBtn").onclick = () => copyText($("#iPrompt").value, $("#iPrompt"));
+$("#iFile").addEventListener("change", async e => { const f = e.target.files[0]; if (!f) return; $("#iText").value = await f.text(); $("#importMsg").textContent = `Loaded ${f.name}`; });
+$("#doImportBtn").onclick = () => {
+  let obj;
+  try { obj = parseLoose($("#iText").value); } catch { $("#importMsg").textContent = "That isn't readable card data. Paste the JSON exactly as the AI or export gave it."; return; }
+  const replace = document.querySelector('input[name="imode"]:checked').value === "replace";
+  const oldPer = per();
+  if (replace && obj && obj.binder && typeof obj.binder === "object") {
+    const b = obj.binder; const s = S.settings;
+    if (typeof b.name === "string") s.name = b.name.slice(0, 48);
+    if (/^#[0-9a-f]{6}$/i.test(b.color || "")) s.color = b.color;
+    if (FINISHES[b.finish]) s.finish = b.finish;
+    if (+b.cols >= 1 && +b.cols <= 6) s.cols = +b.cols; if (+b.rows >= 1 && +b.rows <= 6) s.rows = +b.rows;
+    persistSettings();
+  }
+  let incoming = [];
+  const n = per(), cols = S.settings.cols;
+  if (Array.isArray(obj?.pages) || (Array.isArray(obj) && obj[0]?.cards)) {
+    // AI page list without photos
+    const pages = toPages(obj);
+    const base = replace ? 0 : nextFreePage();
+    pages.forEach((p, pi) => p.cards.forEach(c => { if (c.empty || !c.name) return; incoming.push({ ...c, slot: (base + pi) * n + (clamp(+c.row || 1, 1, S.settings.rows) - 1) * cols + (clamp(+c.col || 1, 1, cols) - 1) }); }));
+  } else {
+    const list = Array.isArray(obj) ? obj : Array.isArray(obj?.cards) ? obj.cards : [];
+    incoming = list.filter(c => c && (c.name || c.image)).map(c => {
+      let slot = null;
+      if (Number.isInteger(c.slot) && c.slot >= 0 && !(+c.page)) slot = c.slot;
+      else if (+c.page >= 1) slot = (+c.page - 1) * n + (clamp(+c.row || 1, 1, S.settings.rows) - 1) * cols + (clamp(+c.col || 1, 1, cols) - 1);
+      return { ...c, slot };
+    });
+  }
+  if (!incoming.length) { $("#importMsg").textContent = "No cards found in that data. Each card needs at least a name."; return; }
+  clearSamplesIfNeeded();
+  if (replace) { for (const c of S.cards) persistDelete(c.id); S.cards = []; }
+  const used = new Set(S.cards.map(c => c.slot));
+  const placed = [];
+  for (const c of incoming) {
+    let slot = c.slot;
+    if (slot === null || slot === undefined || used.has(slot)) { slot = 0; while (used.has(slot)) slot++; }
+    used.add(slot);
+    const card = { id: uid(), slot, name: String(c.name || "Unnamed card").slice(0, 120), set: String(c.set || "").slice(0, 120), setCode: String(c.setCode || c.set_code || "").slice(0, 20), number: String(c.number ?? "").slice(0, 40), rarity: String(c.rarity || "").slice(0, 60), game: String(c.game || "").slice(0, 60), notes: String(c.notes || "").slice(0, 1000), image: safeImg(c.image), added: Date.now() };
+    S.cards.push(card); placed.push(card);
+  }
+  for (const c of placed) persistCard(c);
+  $("#importDlg").close();
+  rebuildKeep(oldPer !== per() ? oldPer : undefined);
+  toast(`Imported ${placed.length} card${placed.length === 1 ? "" : "s"}`);
+  if (V.cur === 0) goTo(1, { side: "right" });
+  const bare = placed.filter(c => !c.image);
+  if (STANDALONE && bare.length) setTimeout(() => openImages(bare.map(c => c.id)), 400);
+};
+function nextFreePage() {
+  const real = S.cards.filter(c => !c.sample);
+  if (!real.length) return 0;
+  return Math.floor(Math.max(...real.map(c => c.slot)) / per()) + 1;
+}
+
+/* ---------------- Scan ---------------- */
+const scan = { photos: [], cols: 3, rows: 3, review: [], ctl: null };
+function openScan() {
+  scan.cols = S.settings.cols; scan.rows = S.settings.rows;
+  const sel = $("#sLayout");
+  const opts = LAYOUTS.some(l => l.cols === scan.cols && l.rows === scan.rows) ? LAYOUTS : [...LAYOUTS, { cols: scan.cols, rows: scan.rows, note: "custom" }];
+  sel.innerHTML = opts.map(l => `<option value="${l.cols}x${l.rows}" ${l.cols === scan.cols && l.rows === scan.rows ? "selected" : ""}>${l.cols} across × ${l.rows} down (${l.note})</option>`).join("");
+  renderPhotos(); updateScanUi();
+  $("#scanDlg").showModal();
+}
+$("#scanBtn").onclick = () => canEdit() && openScan();
+$("#sLayout").addEventListener("change", e => { const [c, r] = e.target.value.split("x").map(Number); scan.cols = c; scan.rows = r; scan.photos.forEach(p => p.cards = null); scan.review = []; renderPhotos(); updateScanUi(); });
+$("#sFiles").addEventListener("change", e => { addPhotos(e.target.files); e.target.value = ""; });
+const dz = $("#dropZone");
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("over"); addPhotos(e.dataTransfer.files); });
+async function addPhotos(files) {
+  for (const f of [...files]) {
+    if (!/^image\//.test(f.type)) continue;
+    const url = URL.createObjectURL(f);
+    try { const img = await loadImage(url); scan.photos.push({ id: uid(), file: f, url, img, ins: { t: 3, r: 3, b: 3, l: 3 }, cards: null, status: "" }); }
+    catch { URL.revokeObjectURL(url); toast(`${f.name} couldn't be opened.`); }
+  }
+  scan.review = []; renderPhotos(); updateScanUi();
+}
+function renderPhotos() {
+  const wrap = $("#photos");
+  wrap.innerHTML = scan.photos.map((p, i) => `<div class="sp" data-id="${p.id}">
+    <div class="sp-head"><span>Photo ${i + 1}</span><button type="button" class="btn ghost" data-remove style="height:28px">Remove</button></div>
+    <div class="sp-img"><span class="sp-wrapimg"><img src="${p.url}" alt="Binder page photo ${i + 1}"><span class="sp-grid"></span></span></div>
+    <div class="sliders">${["t", "b", "l", "r"].map(k => `<label>${{ t: "Top", b: "Bottom", l: "Left", r: "Right" }[k]} edge<input type="range" min="0" max="35" step=".5" value="${p.ins[k]}" data-k="${k}"></label>`).join("")}</div>
+    <div class="sp-status ${p.status === "Identified" ? "ok" : /fail|couldn|declin/i.test(p.status) ? "err" : ""}">${esc(p.status)}</div>
+  </div>`).join("");
+  $$(".sp", wrap).forEach(el => positionGrid(el));
+}
+function positionGrid(el) {
+  const p = scan.photos.find(x => x.id === el.dataset.id); if (!p) return;
+  const img = el.querySelector("img"), g = el.querySelector(".sp-grid"), wrapImg = el.querySelector(".sp-wrapimg");
+  const place = () => {
+    // image is object-fit: contain; compute drawn box
+    const bw = img.clientWidth, bh = img.clientHeight, ar = p.img.naturalWidth / p.img.naturalHeight;
+    let dw = bw, dh = bw / ar; if (dh > bh) { dh = bh; dw = bh * ar; }
+    const ox = (bw - dw) / 2, oy = (bh - dh) / 2;
+    g.style.left = ox + dw * p.ins.l / 100 + "px"; g.style.top = oy + dh * p.ins.t / 100 + "px";
+    g.style.width = dw * (1 - (p.ins.l + p.ins.r) / 100) + "px"; g.style.height = dh * (1 - (p.ins.t + p.ins.b) / 100) + "px";
+    g.style.gridTemplateColumns = `repeat(${scan.cols}, 1fr)`; g.style.gridTemplateRows = `repeat(${scan.rows}, 1fr)`;
+    g.innerHTML = "<i></i>".repeat(scan.cols * scan.rows);
+  };
+  img.complete ? place() : img.addEventListener("load", place, { once: true });
+  void wrapImg;
+}
+$("#photos").addEventListener("input", e => {
+  const k = e.target.dataset.k; if (!k) return; const el = e.target.closest(".sp"); const p = scan.photos.find(x => x.id === el.dataset.id);
+  p.ins[k] = +e.target.value; positionGrid(el); if (scan.review.length) buildReview();
+});
+$("#photos").addEventListener("click", e => {
+  if (!e.target.closest("[data-remove]")) return; const el = e.target.closest(".sp");
+  const i = scan.photos.findIndex(x => x.id === el.dataset.id); if (i < 0) return;
+  URL.revokeObjectURL(scan.photos[i].url); scan.photos.splice(i, 1); scan.review = scan.review.length ? [] : scan.review;
+  renderPhotos(); if (scan.photos.some(p => p.cards)) buildReview(); updateScanUi();
+});
+function updateScanUi() {
+  const has = scan.photos.length > 0;
+  $("#identifyPanel").hidden = !has;
+  const canClaude = !!store.sample && store.canImages;
+  $("#askClaudeBtn").hidden = !canClaude;
+  $("#claudeHelp").textContent = canClaude
+    ? "Line the yellow grid up with the pockets on each photo. Identify with Claude reads the cards using your own Claude account. You'll be asked to allow it the first time."
+    : "Line the yellow grid up with the pockets on each photo. Then copy the prompt below into any AI chat with these photos, or crop now and type the names yourself.";
+  $("#altAi").open = has && !canClaude;
+  $("#altPrompt").value = aiPrompt(scan.cols, scan.rows, scan.photos.length || 1);
+  $("#reviewPanel").hidden = !scan.review.length;
+  const n = scan.review.filter(r => r.include).length;
+  $("#addScanBtn").disabled = !n; $("#addScanBtn").textContent = n ? `Add ${n} card${n === 1 ? "" : "s"} to binder` : "Add to binder";
+  $("#scanCount").textContent = has ? `${scan.photos.length} photo${scan.photos.length === 1 ? "" : "s"} · ${scan.cols}×${scan.rows} grid` : "";
+  const mismatch = scan.cols !== S.settings.cols || scan.rows !== S.settings.rows;
+  $$('#placeRow input[value="pages"]').forEach(r => { r.disabled = mismatch; if (mismatch) $('#placeRow input[value="fill"]').checked = true; });
+  $("#placeRow label").title = mismatch ? "Photos use a different grid than this binder, so cards fill the next empty pockets." : "";
+}
+function cropCell(p, r, c) {
+  const W = p.img.naturalWidth, H = p.img.naturalHeight;
+  const gx = W * p.ins.l / 100, gy = H * p.ins.t / 100, gw = W * (1 - (p.ins.l + p.ins.r) / 100), gh = H * (1 - (p.ins.t + p.ins.b) / 100);
+  const cw = gw / scan.cols, ch = gh / scan.rows, m = .035;
+  const cv = document.createElement("canvas"); cv.width = 300; cv.height = 419;
+  cv.getContext("2d").drawImage(p.img, gx + c * cw + cw * m, gy + r * ch + ch * m, cw * (1 - 2 * m), ch * (1 - 2 * m), 0, 0, 300, 419);
+  return cv.toDataURL("image/jpeg", .8);
+}
+function buildReview() {
+  const prev = new Map(scan.review.map(r => [r.key, r]));
+  scan.review = [];
+  scan.photos.forEach((p, pi) => {
+    for (let r = 0; r < scan.rows; r++) for (let c = 0; c < scan.cols; c++) {
+      const key = p.id + ":" + r + ":" + c; const old = prev.get(key);
+      const hit = (p.cards || []).find(x => (+x.row - 1) === r && (+x.col - 1) === c) || {};
+      const empty = !!hit.empty || (p.cards && !hit.name);
+      scan.review.push({ key, pi, r, c, img: cropCell(p, r, c),
+        name: old?.name ?? (hit.name || ""), set: old?.set ?? (hit.set || ""), number: old?.number ?? (hit.number != null ? String(hit.number) : ""),
+        rarity: old?.rarity ?? (hit.rarity || ""), game: old?.game ?? (hit.game || ""), setCode: old?.setCode ?? (hit.setCode || ""), include: old ? old.include : !empty });
+    }
+  });
+  $("#review").innerHTML = scan.review.map((v, i) => `<div class="rv${v.include ? "" : " off"}" data-i="${i}">
+    <img src="${v.img}" alt="">
+    <div class="fs"><input type="text" data-f="name" value="${esc(v.name)}" placeholder="Name" aria-label="Card name"><input type="text" data-f="set" value="${esc(v.set)}" placeholder="Set" aria-label="Set"><input type="text" data-f="number" value="${esc(v.number)}" placeholder="No." aria-label="Number"></div>
+    <div class="tag"><span>Photo ${v.pi + 1} · R${v.r + 1} C${v.c + 1}</span><label><input type="checkbox" data-f="include" ${v.include ? "checked" : ""}> Add</label></div></div>`).join("");
+  updateScanUi();
+}
+$("#review").addEventListener("input", e => {
+  const el = e.target.closest(".rv"); const v = scan.review[+el.dataset.i]; const f = e.target.dataset.f;
+  if (f === "include") { v.include = e.target.checked; el.classList.toggle("off", !v.include); updateScanUi(); }
+  else { v[f] = e.target.value; if (f === "name" && v.name && !v.include) { v.include = true; el.classList.remove("off"); el.querySelector('[data-f="include"]').checked = true; updateScanUi(); } }
+});
+$("#cropOnlyBtn").onclick = () => { buildReview(); $("#reviewPanel").scrollIntoView({ behavior: "smooth", block: "start" }); };
+$("#copyAltBtn").onclick = () => copyText($("#altPrompt").value, $("#altPrompt"));
+$("#applyAltBtn").onclick = () => {
+  let pages;
+  try { pages = toPages(parseLoose($("#altReply").value)); } catch { toast("That reply isn't JSON. Ask the AI to reply with only the JSON, then paste it again."); return; }
+  if (!pages.length) { toast("The reply has no cards in it."); return; }
+  pages.forEach(pg => { const p = scan.photos[(+pg.photo || 1) - 1]; if (p) { p.cards = pg.cards; p.status = "Identified"; } });
+  renderPhotos(); buildReview(); $("#reviewPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+async function photoBlob(p) {
+  const max = 1800, W = p.img.naturalWidth, H = p.img.naturalHeight, k = Math.min(1, max / Math.max(W, H));
+  const cv = document.createElement("canvas"); cv.width = Math.round(W * k); cv.height = Math.round(H * k);
+  cv.getContext("2d").drawImage(p.img, 0, 0, cv.width, cv.height);
+  return new Promise(res => cv.toBlob(res, "image/jpeg", .88));
+}
+$("#askClaudeBtn").onclick = async () => {
+  if (!store.sample) return;
+  const ctl = new AbortController(); scan.ctl = ctl;
+  $("#askClaudeBtn").disabled = true; $("#stopClaudeBtn").hidden = false;
+  const prompt = `This photo shows one trading card binder page. The cards sit in a grid of ${scan.cols} columns and ${scan.rows} rows. Row 1 is the top row and column 1 is the left column, as seen in the photo.
+
+Identify the card in every pocket. Reply with only JSON in this shape:
+{"cards":[{"row":1,"col":1,"empty":false,"name":"","set":"","setCode":"","number":"","rarity":"","game":""}]}
+
+Rules:
+- Exactly one entry per pocket: ${scan.cols * scan.rows} entries.
+- Empty pocket: "empty": true and blank fields.
+${CARD_RULES}
+- Don't invent cards.`;
+  let done = 0;
+  try {
+    for (const p of scan.photos) {
+      if (ctl.signal.aborted) break;
+      if (p.cards && p.status === "Identified") { done++; continue; }
+      p.status = "Reading…"; renderPhotos();
+      $("#claudeProgress").textContent = `Claude is reading photo ${scan.photos.indexOf(p) + 1} of ${scan.photos.length}. Each page takes up to a minute.`;
+      try {
+        const blob = await photoBlob(p);
+        const res = await store.sample.json(prompt, { images: [blob], signal: ctl.signal });
+        const pages = toPages(res);
+        p.cards = pages[0]?.cards || []; p.status = "Identified"; done++;
+      } catch (e) {
+        if (e?.code === "cancelled") { p.status = ""; break; }
+        if (e?.code === "not_granted" || e?.code === "sampling_disabled" || e?.code === "images_unavailable") {
+          p.status = ""; store.canImages = false; updateScanUi(); $("#altAi").open = true;
+          $("#claudeProgress").textContent = "Claude isn't available on this page. Use the prompt below with any AI chat instead.";
+          renderPhotos(); return;
+        }
+        if (e?.code === "rate_limited") { p.status = "Claude is busy. Try again in a minute."; renderPhotos(); break; }
+        p.status = "Couldn't read this photo. Try a sharper, straighter shot, or type the names."; p.cards = p.cards || null;
+      }
+      renderPhotos();
+    }
+    $("#claudeProgress").textContent = done ? `Read ${done} of ${scan.photos.length} photo${scan.photos.length === 1 ? "" : "s"}. Check the results below.` : "";
+    if (done) { buildReview(); $("#reviewPanel").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  } finally {
+    $("#askClaudeBtn").disabled = false; $("#stopClaudeBtn").hidden = true; scan.ctl = null; renderPhotos();
+  }
+};
+$("#stopClaudeBtn").onclick = () => scan.ctl?.abort();
+$("#addScanBtn").onclick = () => {
+  const items = scan.review.filter(v => v.include);
+  if (!items.length) return;
+  const mode = document.querySelector('input[name="place"]:checked').value;
+  clearSamplesIfNeeded();
+  const used = new Set(S.cards.map(c => c.slot));
+  const n = per(); const base = nextFreePage();
+  const added = [];
+  for (const v of items) {
+    let slot;
+    if (mode === "pages" && scan.cols === S.settings.cols && scan.rows === S.settings.rows) slot = (base + v.pi) * n + v.r * scan.cols + v.c;
+    if (slot === undefined || used.has(slot)) { slot = 0; while (used.has(slot)) slot++; }
+    used.add(slot);
+    const c = { id: uid(), slot, name: v.name.trim() || "Unnamed card", set: v.set.trim(), setCode: String(v.setCode || "").trim(), number: v.number.trim(), rarity: v.rarity || "", game: v.game || "", notes: "", image: v.img, added: Date.now() };
+    S.cards.push(c); added.push(c);
+  }
+  for (const c of added) persistCard(c);
+  scan.photos.forEach(p => URL.revokeObjectURL(p.url)); scan.photos = []; scan.review = [];
+  $("#scanDlg").close();
+  refresh();
+  toast(`Added ${added.length} card${added.length === 1 ? "" : "s"}`);
+  jumpToSlot(Math.min(...added.map(c => c.slot)));
+};
+
+/* ---------------- Get images (official card art lookup) ---------------- */
+const norm = s => String(s || "").toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+const normNum = s => String(s || "").toUpperCase().replace(/\s+/g, "").replace(/^([A-Z]*)0+(\d)/, "$1$2");
+function parseNum(n) {
+  const raw = String(n || "").trim(); if (!raw) return { num: "", total: 0 };
+  const [a, b] = raw.split("/");
+  const t = /(\d+)/.exec(b || ""); return { num: normNum(a), total: t ? +t[1] : 0 };
+}
+function detectGame(c, hint) {
+  if (hint && hint !== "auto") return [hint];
+  const g = norm(c.game);
+  if (/pok/.test(g)) return ["pokemon"];
+  if (/magic|mtg|gathering/.test(g)) return ["magic"];
+  if (/yu ?gi|ygo|yugioh/.test(g)) return ["ygo"];
+  if (/baseball|basketball|football|soccer|hockey|sport|nba|nfl|mlb|nhl|ufc|wwe/.test(g)) return [];
+  return ["pokemon", "magic", "ygo"];
+}
+// names: "Charizard-EX" = "Charizard EX" = "charizard ex"; drop trailing set-code junk like "(Base Set)"
+const nameKey = s => norm(String(s || "").replace(/\(.*?\)/g, " ").replace(/[’']/g, ""));
+function nameRel(a, b) { const x = nameKey(a), y = nameKey(b); if (!x || !y) return 0; if (x === y) return 2; const wa = x.split(" "), wb = y.split(" "); return (wa.every(w => wb.includes(w)) || wb.every(w => wa.includes(w))) ? 1 : 0; }
+function setRel(given, candSets) {
+  const ks = norm(given); if (!ks) return 0;
+  const strip = s => s.replace(/\b(scarlet and violet|sword and shield|sun and moon|xy|black and white|heartgold soulsilver|diamond and pearl|platinum|ex|base|pokemon|tcg|the)\b/g, " ").replace(/\s+/g, " ").trim();
+  let best = 0;
+  for (const raw of candSets) {
+    const cs = norm(raw); if (!cs) continue;
+    if (cs === ks) return 10;
+    const a = strip(cs), b = strip(ks);
+    if (a && b && a === b) best = Math.max(best, 9);
+    else if (cs.length > 2 && ks.length > 2 && (cs.includes(ks) || ks.includes(cs))) best = Math.max(best, 6);
+    else { const A = new Set(cs.split(" ")), B = ks.split(" "); best = Math.max(best, B.filter(w => A.has(w)).length / Math.max(B.length, A.size) * 5); }
+  }
+  return best;
+}
+function numRel(given, candNums) {
+  const { num } = parseNum(given); if (!num) return 0;
+  const tail = s => normNum(String(s).split("-").pop().replace(/^[A-Z]{1,3}(?=\d)/, ""));
+  for (const x of candNums || []) {
+    const n = normNum(String(x).split("/")[0]);
+    if (n === num) return 2;
+    if (tail(n) === tail(num) && /\d/.test(num)) return 1;
+  }
+  return 0;
+}
+// Score a candidate printing against what the card says. Higher is better; conf is "high" only when name, number and set all agree.
+function scoreCand(cand, card) {
+  const nr = nameRel(cand.name, card.name); if (!nr) return { s: -1 };
+  const sr = Math.max(setRel(card.set, cand.sets || [cand.set]), card.setCode && (cand.codes || []).some(c => norm(c) === norm(card.setCode)) ? 10 : 0);
+  const mr = numRel(card.number, cand.numbers);
+  const { total } = parseNum(card.number);
+  let s = nr * 5 + sr + mr * 6 + (total && cand.total === total ? 3 : 0) + (cand.direct ? 6 : 0);
+  const hasSet = !!(norm(card.set) || norm(card.setCode)), hasNum = !!parseNum(card.number).num;
+  const conf = cand.direct || (nr === 2 && (hasNum ? mr === 2 : true) && (hasSet ? sr >= 6 : true) && (hasNum || hasSet)) ? "high" : "check";
+  return { s, conf };
+}
+const pickedKey = "pb:setcache:";
+async function cachedList(key, url, signal, mapFn) {
+  try { const o = JSON.parse(localStorage.getItem(pickedKey + key) || "null"); if (o && Date.now() - o.t < 5 * 864e5 && o.v?.length) return o.v; } catch {}
+  const j = await getJSON(url, signal).catch(e => { if (e.code === "cancelled") throw e; return null; });
+  const v = j ? mapFn(j) : [];
+  if (v.length) try { localStorage.setItem(pickedKey + key, JSON.stringify({ t: Date.now(), v })); } catch {}
+  return v;
+}
+const isPocket = id => /^(?:[AB]\d|P-A)/i.test(id); // TCG Pocket (digital) sets
+const tcgdexSets = signal => cachedList("tcgdex", "https://api.tcgdex.net/v2/en/sets", signal, j => j.filter(s => !isPocket(s.id)).map(s => ({ id: s.id, name: s.name, official: s.cardCount?.official || 0, total: s.cardCount?.total || 0 })));
+const ptcgSets = signal => cachedList("ptcg", "https://api.pokemontcg.io/v2/sets?pageSize=250&select=id,name,series,ptcgoCode,printedTotal", signal, j => (j.data || []).map(s => ({ name: s.name, series: s.series, code: s.ptcgoCode || "", total: s.printedTotal })));
+const scrySets = signal => cachedList("scry", "https://api.scryfall.com/sets", signal, j => (j.data || []).map(s => ({ code: s.code, name: s.name, total: s.printed_size || s.card_count })));
+let scryCodes = null;
+// The desktop launcher runs a small local helper that fetches from card databases whose
+// download headers browsers reject. Sites known to need it go straight through the helper.
+const HELPER = "http://localhost:47123/fetch?u=";
+const HELPER_FIRST = /^https:\/\/(images\.scrydex\.com|assets\.tcgdex\.net|images\.ygoprodeck\.com|api\.pokemontcg\.io|tcg\.pokemon\.com|dz3we2x72f7ol\.cloudfront\.net|assets\.pokemon\.com|[a-z0-9-]+\.tcgplayer\.com)\//;
+async function fetchAny(url, opts) {
+  const viaHelper = () => fetch(HELPER + encodeURIComponent(url), { signal: opts.signal });
+  if (DESKTOP && HELPER_FIRST.test(url)) {
+    try { return await viaHelper(); } catch (e) { if (opts.signal?.aborted) throw e; }
+    return fetch(url, opts);
+  }
+  try { return await fetch(url, opts); }
+  catch (e) { if (opts.signal?.aborted || !DESKTOP) throw e; return viaHelper(); }
+}
+let scryGate = Promise.resolve();
+function scryTurn() { const p = scryGate.then(() => sleep(110)); scryGate = p; return p; }
+async function getJSON(url, signal) {
+  for (let a = 0; a < 3; a++) {
+    if (signal.aborted) throw { code: "cancelled" };
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 25000);
+    const stop = () => ctl.abort(); signal.addEventListener("abort", stop, { once: true });
+    try {
+      const r = await fetchAny(url, { signal: ctl.signal, headers: { Accept: "application/json" } });
+      if (r.status === 404 || r.status === 400) return null;
+      if (r.ok) return await r.json();
+      await sleep((r.status === 429 ? 2000 : 900) * (a + 1));
+    } catch (e) {
+      if (signal.aborted) throw { code: "cancelled" };
+      await sleep(900 * (a + 1));
+    } finally { clearTimeout(t); signal.removeEventListener("abort", stop); }
+  }
+  throw { code: "unreachable" };
+}
+// The same printing's picture on the Pokémon TCG API's image server (TCGdex set id → its set id)
+function ptcgSetId(sid, n) {
+  let m, id = sid;
+  if ((m = /^sv0?(\d+)\.5$/.exec(sid))) id = `sv${m[1]}pt5`;
+  else if ((m = /^sv0?(\d+)$/.exec(sid))) id = `sv${m[1]}`;
+  else if (sid === "swsh12.5") id = "swsh12pt5";
+  else if ((m = /^(swsh|sm)(\d+)\.5$/.exec(sid))) id = m[1] + m[2] + "5";
+  if (/^TG\d/i.test(n)) id += "tg";
+  else if (/^GG\d/i.test(n)) id += "gg";
+  else if (/^SV\d/i.test(n) && /^swsh45$/.test(id)) id += "sv";
+  return id;
+}
+function ptcgImg(sid, n) {
+  n = String(n || ""); if (!n) return null;
+  const num = /^\d+$/.test(n) ? String(+n) : n.toUpperCase();
+  const base = `https://images.pokemontcg.io/${ptcgSetId(sid, n)}/${encodeURIComponent(num)}`;
+  return { hi: base + "_hires.png", lo: base + ".png" };
+}
+// ---- Official Pokémon card galleries (tcg.pokemon.com) — best pictures for newer sets ----
+async function getText(url, signal) {
+  for (let a = 0; a < 2; a++) {
+    try { const r = await fetchAny(url, { signal }); if (r.ok) return await r.text(); if (r.status === 404) return null; }
+    catch (e) { if (signal.aborted) throw { code: "cancelled" }; }
+    await sleep(700);
+  }
+  return null;
+}
+const decodeHtml = s => { const t = document.createElement("textarea"); t.innerHTML = s; return t.value; };
+let galleriesP = null;
+function officialGalleries(signal) {
+  if (galleriesP) return galleriesP;
+  galleriesP = (async () => {
+    try { const o = JSON.parse(localStorage.getItem("pb:galleries") || "null"); if (o && Date.now() - o.t < 3 * 864e5 && o.v?.length) return o.v; } catch {}
+    const html = await getText("https://tcg.pokemon.com/en-us/all-galleries/", signal);
+    const v = []; const seen = new Set();
+    for (const m of String(html || "").matchAll(/href="[^"]*?\/galleries\/([a-z0-9-]+)\/"[^>]*>([\s\S]*?)<\/a>/g)) {
+      const slug = m[1]; if (seen.has(slug)) continue;
+      const full = decodeHtml(m[2].replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim(); if (!full) continue;
+      seen.add(slug);
+      const short = full.replace(/^Pok[ée]mon TCG:\s*/i, "").split(/[—–]/).pop().trim();
+      v.push({ slug, full, short });
+    }
+    if (v.length) try { localStorage.setItem("pb:galleries", JSON.stringify({ t: Date.now(), v })); } catch {}
+    if (!v.length) galleriesP = null; // try again next time
+    return v;
+  })();
+  return galleriesP;
+}
+const galleryPrefix = new Map();
+async function officialPrefix(slug, signal) {
+  if (galleryPrefix.has(slug)) return galleryPrefix.get(slug);
+  const key = "pb:gallery:" + slug;
+  try { const v = localStorage.getItem(key); if (v) { galleryPrefix.set(slug, v); return v; } } catch {}
+  const html = await getText(`https://tcg.pokemon.com/en-us/galleries/${slug}/`, signal);
+  const m = /src="(https:\/\/[^"]+?_EN_)[A-Za-z0-9]+(?:-2x)?\.png"/.exec(html || "");
+  const v = m ? m[1] : "";
+  galleryPrefix.set(slug, v);
+  if (v) try { localStorage.setItem(key, v); } catch {}
+  return v;
+}
+// Put the best picture sources first for a chosen Pokémon printing
+async function enrichImages(c, signal) {
+  if (!c || c.game !== "pokemon") return c.imgs || [c.img];
+  const n = String((c.numbers || [])[0] || ""); const imgs = [...(c.imgs || [c.img])];
+  if (!n) return imgs;
+  const num = /^\d+$/.test(n) ? String(+n) : n.toUpperCase();
+  if (!DESKTOP) return imgs; // the official galleries and pokemon.com only work through the desktop helper
+  try {
+    const gs = await officialGalleries(signal);
+    const g = gs.map(g => ({ g, r: Math.max(setRel(c.set, [g.short]), setRel(c.set, [g.full])) })).sort((a, b) => b.r - a.r)[0];
+    if (g && g.r >= 9) {
+      const prefix = await officialPrefix(g.g.slug, signal);
+      if (prefix) imgs.unshift(prefix + num + "-2x.png", prefix + num + ".png");
+    }
+  } catch (e) { if (e && e.code === "cancelled") throw e; }
+  if (c.sid) { const pt = ptcgSetId(c.sid, n).toUpperCase(); imgs.splice(imgs.length - 1, 0, `https://assets.pokemon.com/assets/cms2/img/cards/web/${pt}/${pt}_EN_${encodeURIComponent(num)}.png`); }
+  return [...new Set(imgs.filter(Boolean))];
+}
+const soft = p => p.catch(e => { if (e && e.code === "cancelled") throw e; return null; });
+// ---- Scrydex (optional, the user's own paid key) ----
+const SX_KEY = "pb:scrydex";
+function sxConf() {
+  try { const o = JSON.parse(localStorage.getItem(SX_KEY) || "null"); if (o) return { key: o.key || "", team: o.team || "", mode: o.mode === "first" ? "first" : "fallback" }; } catch {}
+  return { key: "", team: "", mode: "fallback" };
+}
+const sxOn = () => { const c = sxConf(); return DESKTOP && !!(c.key && c.team); };
+const sxMonth = () => "pb:sxcount:" + new Date().toISOString().slice(0, 7);
+function sxCount(add) {
+  let n = 0; try { n = +localStorage.getItem(sxMonth()) || 0; if (add) localStorage.setItem(sxMonth(), String(n += add)); } catch {}
+  return n;
+}
+let sxLastError = "";
+function sxStatus(msg) {
+  const c = sxConf();
+  $("#sxMsg").textContent = (msg ? msg + " " : "") + (c.key && c.team
+    ? `Scrydex is on (${c.mode === "first" ? "checked first" : "used only when needed"}). Credits used by Pocket Binder this month: ${sxCount(0)}.`
+    : "Scrydex is off.");
+}
+async function sxGet(path, signal) {
+  const c = sxConf(); if (!c.key || !c.team) return null;
+  const url = "https://api.scrydex.com" + path;
+  const cacheKey = "pb:sx:" + path;
+  try { const hit = localStorage.getItem(cacheKey); if (hit) return JSON.parse(hit); } catch {}
+  let r;
+  try { r = await fetch(HELPER + encodeURIComponent(url) + "&k=" + encodeURIComponent(c.key) + "&t=" + encodeURIComponent(c.team), { signal }); }
+  catch (e) { if (signal.aborted) throw { code: "cancelled" }; sxLastError = "unreachable"; return null; }
+  if (r.status === 401 || r.status === 403) { sxLastError = "auth"; return null; }
+  sxCount(1);
+  if (r.status === 429) { sxLastError = "limit"; return null; }
+  if (!r.ok) { sxLastError = "error"; return null; }
+  const j = await r.json().catch(() => null);
+  if (j) try { localStorage.setItem(cacheKey, JSON.stringify(j)); } catch {}
+  return j;
+}
+async function scrydexPokemon(card, signal, broad) {
+  const name = card.name.replace(/"/g, "").trim(); if (!name) return [];
+  const { num } = parseNum(card.number);
+  const sel = "&select=id,name,number,printed_number,images,expansion&page_size=" + (broad ? 100 : 40);
+  const q = n => "/pokemon/v1/cards?q=" + encodeURIComponent(`name:"${name}"` + (n ? ` number:${n}` : "")) + sel;
+  let j = await sxGet(q(num), signal);
+  if (broad && num && !(j?.data || []).length) j = await sxGet(q(""), signal); // picker only: widen the search
+  const list = (j?.data || []).filter(d => !d.expansion?.is_online_only);
+  const en = list.filter(d => (d.language_code || d.expansion?.language_code || "EN") === "EN");
+  return (en.length ? en : list).map(d => {
+    const f = (d.images || []).find(i => i.type === "front") || (d.images || [])[0] || {};
+    return { name: d.name, set: d.expansion?.name || "", sets: [d.expansion?.name, d.expansion?.series && d.expansion.series + " " + d.expansion.name].filter(Boolean),
+      numbers: [d.number, d.printed_number].filter(Boolean), total: d.expansion?.printed_total, img: f.large || f.medium, imgs: [f.large, f.medium].filter(Boolean), thumb: f.small || f.medium, source: "scrydex" };
+  }).filter(c => c.img);
+}
+$("#sxSave").onclick = () => {
+  const key = $("#sxKey").value.trim(), team = $("#sxTeam").value.trim();
+  const mode = document.querySelector('input[name="sxmode"]:checked').value;
+  if (!key || !team) { sxStatus("Enter both your team ID and API key."); return; }
+  try { localStorage.setItem(SX_KEY, JSON.stringify({ key, team, mode })); } catch { sxStatus("Couldn't save the key on this computer."); return; }
+  sxStatus("Saved.");
+};
+document.querySelectorAll('input[name="sxmode"]').forEach(r => r.addEventListener("change", () => { const c = sxConf(); if (c.key) { try { localStorage.setItem(SX_KEY, JSON.stringify({ ...c, mode: r.value })); } catch {} sxStatus(); } }));
+$("#sxClear").onclick = () => { try { localStorage.removeItem(SX_KEY); } catch {} $("#sxKey").value = ""; $("#sxTeam").value = ""; sxStatus("Key removed."); };
+$("#sxTest").onclick = async () => {
+  $("#sxSave").click(); if (!sxOn()) return;
+  sxStatus("Testing…"); sxLastError = "";
+  const c = sxConf();
+  try {
+    const r = await fetch(HELPER + encodeURIComponent("https://api.scrydex.com/pokemon/v1/cards?q=name:pikachu&page_size=1&select=id,name") + "&k=" + encodeURIComponent(c.key) + "&t=" + encodeURIComponent(c.team));
+    if (r.status !== 401 && r.status !== 403) sxCount(1);
+    if (r.ok) sxStatus("Your key works.");
+    else if (r.status === 401 || r.status === 403) sxStatus("Scrydex didn't accept that key and team ID. Check both in the Scrydex Account Hub.");
+    else sxStatus(`Scrydex answered with an error (${r.status}). Try again in a minute.`);
+  } catch { sxStatus("Couldn't reach Scrydex. Make sure Pocket Binder was opened from PocketBinder.exe and you're online."); }
+};
+
+// Each source returns candidate printings: {name, set, sets, codes, numbers, total, img, thumb, direct}
+// `direct` means it was fetched by exact set + number and the name matched, so it's the exact printing.
+const SOURCES = {
+  async pokemon(card, signal, broad) {
+    const name = card.name.replace(/"/g, "").trim();
+    const { num, total } = parseNum(card.number);
+    const sets = await tcgdexSets(signal);
+    const byId = new Map(sets.map(s => [s.id, s]));
+    // turn a printed set code ("MEW") into a set name using the Pokémon TCG API's set list
+    let codeName = "";
+    if (card.setCode) { const ps = await soft(ptcgSets(signal)); const hit = (ps || []).find(s => norm(s.code) === norm(card.setCode)); if (hit) codeName = hit.name; }
+    const rankSet = s => Math.max(setRel(card.set, [s.name]), codeName ? setRel(codeName, [s.name]) + 1 : 0) + (total && (s.official === total || s.total === total) ? 3 : 0);
+    const ranked = sets.map(s => ({ s, r: rankSet(s) })).filter(x => x.r >= 5 || (!norm(card.set) && !codeName && total && x.r >= 3)).sort((a, b) => b.r - a.r).slice(0, 5);
+    const out = [];
+    const fromTcg = (d, s, sid) => {
+      sid = sid || s?.id || d.set?.id || "";
+      const alt = sid ? ptcgImg(sid, d.localId) : null;
+      return { name: d.name, sid, set: s?.name || d.set?.name || "", sets: [s?.name || d.set?.name || ""], numbers: [d.localId], total: s?.official,
+        img: alt ? alt.hi : d.image + "/high.png", imgs: [alt && alt.hi, d.image + "/high.png"].filter(Boolean),
+        thumb: alt ? alt.lo : d.image + "/low.webp", thumbAlt: d.image + "/low.webp" };
+    };
+    // 1. exact lookup: set + number
+    const rawNum = String(card.number || "").split("/")[0].trim();
+    const tries = [...new Set([rawNum, num].filter(Boolean))];
+    outer: if (num) for (const { s } of ranked) for (const n of tries) {
+      const d = await soft(getJSON(`https://api.tcgdex.net/v2/en/sets/${encodeURIComponent(s.id)}/${encodeURIComponent(n)}`, signal));
+      if (d && d.image && nameRel(d.name, card.name)) { out.push({ ...fromTcg(d, s), direct: nameRel(d.name, card.name) === 2 }); if (!broad) return out; break outer; }
+      if (d) break; // card exists at this number but it's a different card: try the next set
+    }
+    // 2. every printing with this name
+    const q = name.replace(/-/g, " ").replace(/\s+/g, " ");
+    const list = await soft(getJSON("https://api.tcgdex.net/v2/en/cards?name=" + encodeURIComponent(q), signal));
+    const rankedIds = new Set(ranked.map(x => x.s.id));
+    for (const x of Array.isArray(list) ? list : []) {
+      if (!x.image || isPocket(x.id) || !nameRel(x.name, card.name)) continue;
+      const sid = x.id.slice(0, x.id.lastIndexOf("-")); const s = byId.get(sid);
+      if (!s && !broad) continue;
+      out.push({ ...fromTcg(x, s, sid), set: s?.name || sid, sets: [s?.name || sid], inRanked: rankedIds.has(sid) });
+    }
+    if (out.length) return out;
+    // 3. backup: Pokémon TCG API
+    const j = await soft(getJSON("https://api.pokemontcg.io/v2/cards?pageSize=120&select=name,number,set,images&q=" + encodeURIComponent(`name:"${name}"`), signal));
+    return (j?.data || []).map(d => ({ name: d.name, set: d.set?.name, sets: [d.set?.name], codes: [d.set?.ptcgoCode].filter(Boolean), numbers: [d.number], total: d.set?.printedTotal, img: d.images?.large || d.images?.small, thumb: d.images?.small }));
+  },
+  async magic(card, signal, broad) {
+    const name = card.name.replace(/"/g, "").trim();
+    const { num } = parseNum(card.number);
+    const map = d => ({ name: d.name, set: d.set_name, sets: [d.set_name], codes: [d.set], numbers: [d.collector_number], img: d.image_uris?.normal || d.card_faces?.[0]?.image_uris?.normal, thumb: d.image_uris?.small || d.card_faces?.[0]?.image_uris?.small });
+    const front = d => String(d.name || "").split(" // ")[0];
+    const out = [];
+    let code = norm(card.setCode).replace(/ /g, "");
+    if (!code && card.set) { const ss = await soft(scrySets(signal)) || []; const best = ss.map(s => ({ s, r: setRel(card.set, [s.name]) })).sort((a, b) => b.r - a.r)[0]; if (best && best.r >= 6) code = best.s.code; }
+    if (code && num) {
+      await scryTurn();
+      const d = await soft(getJSON(`https://api.scryfall.com/cards/${encodeURIComponent(code)}/${encodeURIComponent(String(card.number).split("/")[0].trim().replace(/^0+(?=\d)/, ""))}`, signal));
+      if (d && d.object === "card" && nameRel(front(d), card.name)) { out.push({ ...map(d), name: front(d), direct: true }); if (!broad) return out; }
+    }
+    await scryTurn();
+    const j = await soft(getJSON("https://api.scryfall.com/cards/search?unique=prints&order=released&q=" + encodeURIComponent(`!"${name}"`), signal));
+    let cands = (j?.data || []).map(d => ({ ...map(d), name: front(d) }));
+    if (!cands.length) {
+      await scryTurn();
+      const one = await soft(getJSON("https://api.scryfall.com/cards/named?fuzzy=" + encodeURIComponent(name), signal));
+      if (one && one.object === "card") {
+        await scryTurn();
+        const all = await soft(getJSON(one.prints_search_uri, signal));
+        cands = (all?.data || [one]).map(d => ({ ...map(d), name: front(d) }));
+      }
+    }
+    return out.concat(cands).filter(c => c.img);
+  },
+  async ygo(card, signal, broad) {
+    const name = card.name.trim();
+    const out = [];
+    const codeLike = /^[A-Z0-9]{2,5}-[A-Z]{0,2}\d{2,4}$/i;
+    const setcode = [card.number, card.setCode].map(x => String(x || "").trim()).find(x => codeLike.test(x));
+    const img = id => `https://images.ygoprodeck.com/images/cards/${id}.jpg`, small = id => `https://images.ygoprodeck.com/images/cards_small/${id}.jpg`;
+    if (setcode) {
+      const d = await soft(getJSON("https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=" + encodeURIComponent(setcode.toUpperCase()), signal));
+      if (d && d.id && nameRel(d.name, card.name)) { out.push({ name: d.name, set: d.set_name, sets: [d.set_name], numbers: [d.set_code], img: img(d.id), thumb: small(d.id), direct: true }); if (!broad) return out; }
+    }
+    let j = await soft(getJSON("https://db.ygoprodeck.com/api/v7/cardinfo.php?name=" + encodeURIComponent(name), signal));
+    if (!j?.data) j = await soft(getJSON("https://db.ygoprodeck.com/api/v7/cardinfo.php?fname=" + encodeURIComponent(name), signal));
+    for (const d of (j?.data || []).slice(0, 12)) for (const im of d.card_images || []) {
+      out.push({ name: d.name, set: (d.card_sets || [])[0]?.set_name || "", sets: (d.card_sets || []).map(s => s.set_name), numbers: (d.card_sets || []).map(s => s.set_code), img: im.image_url, thumb: im.image_url_small });
+    }
+    return out;
+  },
+};
+// All candidate printings for a card, best first
+async function findCandidates(card, hint, signal, broad) {
+  let all = [];
+  const add = (cands, g) => { for (const c of cands || []) { if (!c.img) continue; const sc = scoreCand(c, card); if (sc.s >= 0) all.push({ ...c, game: g, s: sc.s + (c.inRanked ? 2 : 0), conf: sc.conf }); } };
+  const sure = () => all.some(c => c.conf === "high");
+  for (const g of detectGame(card, hint)) {
+    const sx = g === "pokemon" && sxOn() ? sxConf().mode : "";
+    if (sx === "first") add(await scrydexPokemon(card, signal, broad), g);
+    if (broad || !(sx === "first" && sure())) add(await SOURCES[g](card, signal, broad), g);
+    // only spend a Scrydex credit when the free sources came up short
+    if (sx === "fallback" && !sure()) add(await scrydexPokemon(card, signal, broad), g);
+    if (!broad && sure()) break;
+  }
+  const seen = new Set();
+  all = all.sort((a, b) => b.s - a.s).filter(c => { const k = c.img; if (seen.has(k)) return false; seen.add(k); return true; });
+  return all;
+}
+async function findArt(card, hint, signal) {
+  const list = await findCandidates(card, hint, signal, false);
+  if (!list.length) return null;
+  const best = list[0];
+  // two different printings tied at the top: not sure which one it is
+  if (best.conf === "high" && list[1] && list[1].s === best.s && !best.direct) best.conf = "check";
+  return best;
+}
+async function artToDataUrl(urls, signal) {
+  urls = (Array.isArray(urls) ? urls : [urls]).filter(Boolean);
+  for (const url of urls) {
+    const got = await artOne(url, signal);
+    if (got) return got;
+  }
+  const last = urls[urls.length - 1] || "";
+  return /^https:\/\//.test(last) ? last : ""; // nothing could be saved: show the picture straight from the web
+}
+async function artOne(url, signal) {
+  try {
+    const r = await fetchAny(url, { signal }); if (!r.ok) throw 0;
+    const blob = await r.blob(); const obj = URL.createObjectURL(blob);
+    try {
+      const img = await loadImage(obj);
+      const W = 400, H = 559, cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      const ar = W / H, iw = img.naturalWidth, ih = img.naturalHeight, iar = iw / ih;
+      let sw, sh, sx, sy; if (iar > ar) { sh = ih; sw = sh * ar; sx = (iw - sw) / 2; sy = 0; } else { sw = iw; sh = sw / ar; sx = 0; sy = (ih - sh) / 2; }
+      const ctx = cv.getContext("2d"); ctx.fillStyle = "#111"; ctx.fillRect(0, 0, W, H); ctx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+      return cv.toDataURL("image/jpeg", .86);
+    } finally { URL.revokeObjectURL(obj); }
+  } catch (e) {
+    if (signal.aborted) throw { code: "cancelled" };
+    return null;
+  }
+}
+const gi = { ctl: null, running: false, only: null };
+function openImages(onlyIds) {
+  if (gi.running) { $("#imagesDlg").showModal(); return; }
+  gi.only = onlyIds || null;
+  const real = S.cards.filter(c => !c.sample);
+  const missing = real.filter(c => !c.image).length;
+  $("#giScope").innerHTML = gi.only
+    ? `<label><input type="radio" name="giscope" value="only" checked> The ${gi.only.length} card${gi.only.length === 1 ? "" : "s"} you just imported</label><label><input type="radio" name="giscope" value="missing"> Every card without a picture (${missing})</label>`
+    : `<label><input type="radio" name="giscope" value="missing" checked> Cards without a picture (${missing})</label><label><input type="radio" name="giscope" value="all"> All ${real.length} cards, replacing scanned photos</label>`;
+  $("#giStatus").textContent = real.length ? "" : "Add some cards first: scan your pages or import a card list.";
+  $("#giMissing").hidden = true; $("#giFill").style.width = "0";
+  $("#giStart").disabled = !real.length; $("#giStart").hidden = false; $("#giStart").textContent = "Get images"; $("#giStop").hidden = true;
+  $("#giCount").textContent = sxOn() ? `Scrydex on · ${sxConf().mode === "first" ? "checked first" : "used only when needed"}` : "";
+  $("#imagesDlg").showModal();
+}
+$("#imagesBtn").onclick = () => canEdit() && openImages();
+$("#giMissing").addEventListener("click", e => {
+  const b = e.target.closest("[data-cid]"); if (!b) return;
+  const c = S.cards.find(x => x.id === b.dataset.cid); if (!c) return;
+  $("#imagesDlg").close(); openCard(c.slot, true);
+});
+
+/* picture picker inside the card dialog */
+const pick = { ctl: null, list: [] };
+function openPicker() {
+  $("#picker").hidden = false;
+  $("#pickQ").value = $("#fName").value.trim();
+  const g = detectGame({ game: $("#fGame").value }, "auto");
+  $("#pickGame").value = g.length === 1 ? g[0] : "auto";
+  runPicker();
+  setTimeout(() => $("#picker").scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+}
+async function runPicker() {
+  if (pick.ctl) pick.ctl.abort();
+  const ctl = new AbortController(); pick.ctl = ctl;
+  const q = $("#pickQ").value.trim(); if (!q) { $("#pickMsg").textContent = "Type a card name to search."; return; }
+  const probe = { name: q, set: $("#fSet").value, setCode: $("#fSetCode").value, number: $("#fNum").value, game: $("#fGame").value };
+  $("#pickGrid").innerHTML = ""; $("#pickMsg").textContent = "Searching the card databases…";
+  const tq = encodeURIComponent([q, $("#fSet").value.trim()].filter(Boolean).join(" "));
+  const isPkmn = $("#pickGame").value === "pokemon" || /pok/i.test($("#fGame").value);
+  $("#pickLinks").innerHTML = `Not the right one? Look it up on <a href="https://www.tcgplayer.com/search/all/product?q=${tq}" target="_blank" rel="noopener">TCGplayer</a>`
+    + (isPkmn ? `, <a href="https://www.pkmnbindr.com/cards/en/search?q=${encodeURIComponent(q)}" target="_blank" rel="noopener">PkmnBindr</a> or the <a href="https://tcg.pokemon.com/en-us/all-galleries/" target="_blank" rel="noopener">official Pokémon card galleries</a>` : "")
+    + `, right-click the card picture and choose <b>Copy image</b>, then come back here and press Ctrl+V.`;
+  try {
+    const list = (await findCandidates(probe, $("#pickGame").value, ctl.signal, true)).slice(0, 80);
+    if (ctl.signal.aborted) return;
+    pick.list = list;
+    $("#pickMsg").textContent = list.length
+      ? `${list.length} printing${list.length === 1 ? "" : "s"} found. Best matches for the set and number come first. Tap the one that matches your card.`
+      : "Nothing found. Check the spelling, try a shorter name, or pick a different game.";
+    $("#pickGrid").innerHTML = list.map((c, i) => `<button type="button" class="pick" data-i="${i}" aria-pressed="false">
+      <img src="${esc(c.thumb || c.img)}" alt="" loading="lazy"${c.thumbAlt ? ` data-alt="${esc(c.thumbAlt)}"` : ""}>
+      ${i === 0 && c.s > 12 ? "<em>Best match</em>" : ""}<b title="${esc(c.name)}">${esc(c.name)}</b><span title="${esc(c.set)}">${esc(c.set || "")}</span><span>#${esc((c.numbers || [])[0] || "")}${c.total ? "/" + c.total : ""}</span></button>`).join("");
+  } catch (e) {
+    if (e && e.code === "cancelled") return;
+    $("#pickMsg").textContent = "The card databases can't be reached right now. Check your internet connection and try again.";
+  }
+}
+$("#findPicBtn").onclick = openPicker;
+$("#moveBtn").onclick = () => {
+  if (!canEdit()) return;
+  const c = editing.card; if (!c) return;
+  const page = +$("#fMovePage").value, n = per();
+  if (page === Math.floor(c.slot / n)) { $("#cardHint").textContent = "Pick a different page."; return; }
+  const used = new Set(S.cards.map(x => x.slot));
+  let to = -1; for (let s = page * n; s < page * n + n; s++) if (!used.has(s)) { to = s; break; }
+  if (to < 0) { $("#cardHint").textContent = `Page ${page + 1} is full. Drag the card onto a card there to swap them.`; return; }
+  moveCard(c.slot, to);
+  $("#cardDlg").close();
+  toast(`Moved to page ${page + 1}`);
+  jumpToSlot(to);
+};
+
+// paste or drop a picture (or a picture link) into the card window
+async function takePicture(file, url) {
+  if (V.readOnly) return;
+  try {
+    if (file) editing.image = await fileToCardImage(file);
+    else if (url) {
+      $("#cardHint").textContent = "Getting that picture…";
+      const got = await artToDataUrl([url], new AbortController().signal);
+      if (!got) throw 0;
+      editing.image = got;
+    } else return;
+    $$("#pickGrid .pick").forEach(x => x.setAttribute("aria-pressed", "false"));
+    $("#checkNote").hidden = true; drawBig();
+    $("#cardHint").textContent = "Picture added. Save the card to keep it.";
+  } catch { $("#cardHint").textContent = "That picture couldn't be used. Try copying the image itself instead of the page link."; }
+}
+const imgUrlIn = text => { const m = /https?:\/\/\S+/i.exec(String(text || "")); return m ? m[0].replace(/[)"'>\]]+$/, "") : ""; };
+$("#cardDlg").addEventListener("paste", e => {
+  const dt = e.clipboardData; if (!dt) return;
+  const file = [...dt.files].find(f => /^image\//.test(f.type));
+  const tag = document.activeElement?.tagName;
+  const url = imgUrlIn(dt.getData("text/plain"));
+  if (file) { e.preventDefault(); takePicture(file); return; }
+  if (url && (!/INPUT|TEXTAREA/.test(tag || "") || /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url))) { e.preventDefault(); takePicture(null, url); }
+});
+$("#bigCard").addEventListener("dragover", e => { e.preventDefault(); });
+$("#bigCard").addEventListener("drop", e => {
+  e.preventDefault();
+  const dt = e.dataTransfer; const file = [...dt.files].find(f => /^image\//.test(f.type));
+  if (file) { takePicture(file); return; }
+  const html = dt.getData("text/html"); const src = /<img[^>]+src="([^"]+)"/i.exec(html || "");
+  takePicture(null, src ? decodeHtml(src[1]) : imgUrlIn(dt.getData("text/uri-list") || dt.getData("text/plain")));
+});
+$("#pickGo").onclick = runPicker;
+$("#pickQ").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); runPicker(); } });
+$("#pickGame").addEventListener("change", runPicker);
+$("#pickGrid").addEventListener("click", async e => {
+  const b = e.target.closest(".pick"); if (!b) return;
+  const c = pick.list[+b.dataset.i]; if (!c) return;
+  $$("#pickGrid .pick").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  $("#pickMsg").textContent = "Saving that picture…";
+  const ctl = new AbortController();
+  editing.image = await artToDataUrl(await enrichImages(c, ctl.signal).catch(() => c.imgs || [c.img]), ctl.signal).catch(() => c.img);
+  // use the official details for the printing you picked
+  $("#fName").value = c.name;
+  if (c.set) $("#fSet").value = c.set;
+  const n = (c.numbers || [])[0];
+  if (n) $("#fNum").value = c.game !== "ygo" && c.total ? `${n}/${c.total}` : String(n);
+  if (c.codes && c.codes[0]) $("#fSetCode").value = String(c.codes[0]).toUpperCase();
+  if (!$("#fGame").value) $("#fGame").value = { pokemon: "Pokémon", magic: "Magic: The Gathering", ygo: "Yu-Gi-Oh!" }[c.game] || "";
+  $("#checkNote").hidden = true;
+  drawBig();
+  $("#pickMsg").textContent = "Picture chosen. Save the card to keep it.";
+});
+$("#giStop").onclick = () => gi.ctl?.abort();
+$("#giStart").onclick = async () => {
+  const scope = document.querySelector('input[name="giscope"]:checked').value;
+  const hint = $("#giGame").value;
+  const real = S.cards.filter(c => !c.sample);
+  const list = (scope === "only" ? real.filter(c => gi.only.includes(c.id)) : scope === "all" ? real : real.filter(c => !c.image)).sort((a, b) => a.slot - b.slot);
+  if (!list.length) { $("#giStatus").textContent = "Every card already has a picture."; return; }
+  const ctl = new AbortController(); gi.ctl = ctl; gi.running = true; sxLastError = ""; const sxBefore = sxCount(0);
+  $("#giStart").hidden = true; $("#giStop").hidden = false;
+  let doneN = 0, found = 0, lastRefresh = 0; const missed = [], unsure = []; let offline = !navigator.onLine;
+  const queue = list.slice();
+  const tick = () => {
+    $("#giFill").style.width = (doneN / list.length * 100).toFixed(1) + "%";
+    $("#giCount").textContent = `${doneN} of ${list.length} checked`;
+    $("#giStatus").textContent = `Found ${found} picture${found === 1 ? "" : "s"} so far…`;
+    if (Date.now() - lastRefresh > 900) { lastRefresh = Date.now(); renderCover(); fillAround(true); }
+  };
+  const worker = async () => {
+    while (queue.length && !ctl.signal.aborted && !offline) {
+      const card = queue.shift();
+      try {
+        const hit = await findArt(card, hint, ctl.signal);
+        if (hit) {
+          card.image = await artToDataUrl(await enrichImages(hit, ctl.signal), ctl.signal);
+          if (!card.set && hit.set) card.set = hit.set;
+          card.artCheck = hit.conf !== "high";
+          if (card.artCheck) unsure.push(card);
+          persistCard(card); found++;
+        } else missed.push(card);
+      } catch (e) {
+        if (e.code === "cancelled") { queue.unshift(card); break; }
+        if (e.code === "unreachable") { offline = true; missed.push(card); break; }
+        missed.push(card);
+      }
+      doneN++; tick();
+    }
+  };
+  tick();
+  try { await Promise.all([worker(), worker(), worker()]); }
+  finally {
+    gi.running = false; gi.ctl = null;
+    $("#giStop").hidden = true; $("#giStart").hidden = false; $("#giStart").textContent = "Run again";
+    refresh();
+    const stopped = ctl.signal.aborted;
+    const sure = found - unsure.length;
+    $("#giStatus").textContent = offline
+      ? "The card databases can't be reached. Check your internet connection and try again."
+      : `${stopped ? "Stopped. " : ""}Matched ${sure} card${sure === 1 ? "" : "s"} exactly` + (unsure.length ? `, and made a best guess for ${unsure.length}` : "") + (missed.length ? `. ${missed.length} weren't found` : "") + `.` + (unsure.length || missed.length ? " Tap a card below to pick the right picture." : "");
+    if (sxOn()) {
+      const used = sxCount(0) - sxBefore;
+      $("#giStatus").textContent += ` Scrydex credits used: ${used}.` + ({ auth: " Scrydex didn't accept your key; check it in Customize.", limit: " Scrydex says you've hit your rate or credit limit.", unreachable: " Scrydex couldn't be reached.", error: "" }[sxLastError] || "");
+    }
+    const row = c => `<li><button type="button" data-cid="${esc(c.id)}">${esc(c.name)}</button> <span>${esc([c.set, c.number].filter(Boolean).join(" · "))}</span></li>`;
+    const ml = $("#giMissing");
+    ml.innerHTML = (unsure.length ? `<li class="gi-sub">Best guesses, marked ? in the binder</li>${unsure.map(row).join("")}` : "") + (missed.length ? `<li class="gi-sub">Not found</li>${missed.map(row).join("")}` : "");
+    ml.hidden = !(missed.length || unsure.length);
+    if (found) toast(`Added ${found} card picture${found === 1 ? "" : "s"}`);
+  }
+};
+
+/* ---------------- Usernames + PINs (website only) ----------------
+   Each username's binder is saved on this device under its own key. Anyone using the device can
+   look at a binder by its username; changing it needs that username's PIN. A binder published
+   with the site (users/<name>.json) loads the first time its username is opened on a device. */
+const DEFAULTS = { ...S.settings };
+const USERS_KEY = "pb:users", LAST_KEY = "pb:lastUser";
+const ukey = n => String(n || "").trim().toLowerCase();
+const validName = n => /^[A-Za-z0-9_.-]{2,32}$/.test(String(n || "").trim());
+function usersGet() { try { return JSON.parse(localStorage.getItem(USERS_KEY) || "{}") || {}; } catch { return {}; } }
+function usersSet(u) { try { localStorage.setItem(USERS_KEY, JSON.stringify(u)); } catch {} }
+async function pinHash(salt, pin) {
+  const data = new TextEncoder().encode(salt + ":" + pin);
+  if (crypto.subtle) { const b = await crypto.subtle.digest("SHA-256", data); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
+  let h = 0; for (const x of data) h = (h * 31 + x) >>> 0; return "w" + h.toString(16);
+}
+const seedCache = new Map();
+async function fetchSeed(key) {
+  if (seedCache.has(key)) return seedCache.get(key);
+  let v = null;
+  try {
+    const r = await fetch("users/" + encodeURIComponent(key) + ".json", { cache: "no-cache" });
+    if (r.ok) { const j = await r.json(); v = { settings: j.settings || j.binder || null, cards: Array.isArray(j.cards) ? j.cards : [] }; }
+  } catch {}
+  seedCache.set(key, v);
+  return v;
+}
+function stayKey(key) { return "pb:stay:" + key; }
+async function loadUser(name, unlocked) {
+  name = String(name).trim();
+  U.name = name; U.key = ukey(name); LS_KEY = "pocket-binder:user:" + U.key;
+  try { localStorage.setItem(LAST_KEY, name); } catch {}
+  V.readOnly = !unlocked;
+  let data = await readLocal(), fromSeed = false;
+  if (!data || (!data.cards?.length && !data.settings)) { const seed = await fetchSeed(U.key); if (seed) { data = seed; fromSeed = true; } }
+  S.settings = { ...DEFAULTS, name: `${name}'s Binder`, ...(data?.settings || {}) };
+  S.cards = data && data.cards?.length ? data.cards.map(c => ({ ...c, id: c.id || uid() })) : (data ? [] : SAMPLE.map(c => ({ ...c })));
+  // binder files from an export carry page/row/col instead of slot
+  const n = S.settings.cols * S.settings.rows;
+  S.cards.forEach((c, i) => { if (!Number.isInteger(c.slot)) c.slot = +c.page >= 1 ? (+c.page - 1) * n + ((+c.row || 1) - 1) * S.settings.cols + ((+c.col || 1) - 1) : i; });
+  if (fromSeed && unlocked) saveLocalSoon();
+  V.cur = 0; V.side = "right";
+  geometry(); applyLook(); buildBook(); setChip(); updateUserUi();
+  setTimeout(() => goTo(1, { side: "right" }), reduceMotion ? 50 : 500);
+}
+function updateUserUi() {
+  if (!WEB) return;
+  $("#userBtn").hidden = false;
+  $("#userName").textContent = U.name || "Sign in";
+  const l = $("#userLock"); l.hidden = !U.name;
+  l.textContent = V.readOnly ? "View only" : "Editing"; l.classList.toggle("editing", !V.readOnly);
+  document.body.classList.toggle("view-only", V.readOnly);
+  setChip();
+}
+const uState = { step: "name", mode: "", name: "", seed: null };
+function uShow(step) {
+  uState.step = step;
+  $("#uStepName").hidden = step !== "name"; $("#uStepPin").hidden = step !== "pin";
+  $("#uBack").hidden = step !== "pin"; $("#uMsg").textContent = "";
+  $("#userX").hidden = !U.name;
+}
+function openUser(mode) {
+  const d = $("#userDlg");
+  if (mode === "unlock" && U.name) { uPinStep(U.name, "unlock"); }
+  else {
+    const users = usersGet();
+    $("#uName").value = mode === "signin" ? (localStorage.getItem(LAST_KEY) || "") : "";
+    $("#uKnown").innerHTML = Object.values(users).map(u => `<button type="button" class="btn" data-u="${esc(u.name)}">${esc(u.name)}</button>`).join("")
+      + (U.name && !V.readOnly ? `<button type="button" class="btn" data-lock="1">Lock ${esc(U.name)} (view only)</button>` : "");
+    $("#userTitle").textContent = U.name ? "Switch binder" : "Open a binder";
+    $("#uGo").textContent = "Continue"; $("#uView").hidden = true;
+    uShow("name");
+  }
+  if (!d.open) d.showModal();
+  setTimeout(() => (uState.step === "name" ? $("#uName") : $("#uPin")).focus(), 50);
+}
+async function uPinStep(name, why) {
+  const key = ukey(name), reg = usersGet()[key];
+  uState.name = name; $("#uPin").value = ""; $("#uPin2").value = "";
+  $("#userTitle").textContent = name;
+  if (reg && reg.hash) {
+    uState.mode = "enter";
+    $("#uPinHelp").textContent = why === "unlock" ? `Enter the PIN for ${name} to make changes.` : `Enter the PIN for ${name} to edit, or just look at the binder.`;
+    $("#uPinLabel").textContent = "PIN"; $("#uPin2Row").hidden = true; $("#uGo").textContent = "Unlock";
+  } else {
+    uState.mode = "create";
+    const seed = await fetchSeed(key);
+    $("#uPinHelp").textContent = seed
+      ? `${name}'s binder is published on this site. Create a PIN (4 to 12 digits) to edit it on this device.`
+      : `${name} is a new binder on this device. Create a PIN (4 to 12 digits); you'll need it to make changes.`;
+    $("#uPinLabel").textContent = "New PIN"; $("#uPin2Row").hidden = false; $("#uGo").textContent = "Create PIN";
+  }
+  $("#uView").hidden = !(reg || await fetchSeed(key)) || (why === "unlock" && U.key === key && V.readOnly);
+  if (why === "unlock" && U.key === key) $("#uView").hidden = true;
+  uShow("pin");
+  if (!$("#uStayRow")) {
+    const row = document.createElement("label"); row.id = "uStayRow"; row.className = "radio-row";
+    row.innerHTML = `<span style="display:inline-flex; gap:6px; align-items:center"><input type="checkbox" id="uStay"> Stay unlocked on this device</span>`;
+    $("#uStepPin").appendChild(row);
+  }
+  $("#uStay").checked = false;
+}
+$("#uKnown").addEventListener("click", e => {
+  const b = e.target.closest("[data-u]");
+  if (b) { $("#uName").value = b.dataset.u; $("#userForm").requestSubmit(); return; }
+  if (e.target.closest("[data-lock]")) { try { localStorage.removeItem(stayKey(U.key)); sessionStorage.removeItem(stayKey(U.key)); } catch {} V.readOnly = true; updateUserUi(); $("#userDlg").close(); toast(`${U.name} is locked. Enter the PIN to edit again.`); }
+});
+$("#uBack").onclick = () => openUser("switch");
+$("#userX").onclick = () => { if (U.name) $("#userDlg").close(); };
+$("#userDlg").addEventListener("cancel", e => { if (!U.name) e.preventDefault(); });
+$("#uView").onclick = async () => { $("#userDlg").close(); await loadUser(uState.name, false); };
+$("#userForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (uState.step === "name") {
+    const name = $("#uName").value.trim();
+    if (!validName(name)) { $("#uMsg").textContent = "Use 2 to 32 letters, numbers, dots, dashes or underscores."; return; }
+    // use the spelling already saved on this device, if there is one
+    const reg = usersGet()[ukey(name)];
+    await uPinStep(reg ? reg.name : name, "signin");
+    return;
+  }
+  const pin = $("#uPin").value.trim(), key = ukey(uState.name);
+  const users = usersGet();
+  if (uState.mode === "enter") {
+    const reg = users[key];
+    if (!reg || (await pinHash(reg.salt, pin)) !== reg.hash) { $("#uMsg").textContent = "That PIN isn't right."; $("#uPin").select(); return; }
+  } else {
+    if (!/^\d{4,12}$/.test(pin)) { $("#uMsg").textContent = "Use 4 to 12 digits."; return; }
+    if (pin !== $("#uPin2").value.trim()) { $("#uMsg").textContent = "The two PINs don't match."; return; }
+    const salt = [...crypto.getRandomValues(new Uint8Array(12))].map(x => x.toString(16).padStart(2, "0")).join("");
+    users[key] = { name: uState.name, salt, hash: await pinHash(salt, pin) }; usersSet(users);
+  }
+  try { sessionStorage.setItem(stayKey(key), "1"); if ($("#uStay").checked) localStorage.setItem(stayKey(key), "1"); } catch {}
+  $("#userDlg").close();
+  if (U.key === key) { V.readOnly = false; if (!(await readLocal())) saveLocalSoon(); updateUserUi(); toast("Editing unlocked"); }
+  else await loadUser(uState.name, true);
+});
+$("#userBtn").onclick = () => openUser(V.readOnly && U.name ? "unlock" : "switch");
+function stayUnlocked(key) { try { return localStorage.getItem(stayKey(key)) === "1" || sessionStorage.getItem(stayKey(key)) === "1"; } catch { return false; } }
+
+/* ---------------- Boot ---------------- */
+async function boot() {
+  $("#imagesBtn").hidden = !STANDALONE;
+  if (WEB) {
+    // website: open the last binder used on this device, or ask for a username
+    S.cards = SAMPLE.map(c => ({ ...c }));
+    geometry(); applyLook(); buildBook(); updateUserUi();
+    requestAnimationFrame(() => requestAnimationFrame(() => book.classList.remove("intro")));
+    V.opened = true;
+    let last = ""; try { last = localStorage.getItem(LAST_KEY) || ""; } catch {}
+    if (last && validName(last)) await loadUser(last, stayUnlocked(ukey(last)) && !!usersGet()[ukey(last)]);
+    else openUser("signin");
+    if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+    return;
+  }
+  const local = await readLocal();
+  if (local && (local.cards?.length || local.settings)) {
+    S.settings = { ...S.settings, ...(local.settings || {}) };
+    S.cards = Array.isArray(local.cards) && local.cards.length ? local.cards : [];
+    if (!S.cards.length && !local.settings) S.cards = SAMPLE.map(c => ({ ...c }));
+  } else {
+    S.cards = SAMPLE.map(c => ({ ...c }));
+  }
+  geometry(); applyLook(); buildBook(); setChip();
+  // intro: binder slides onto the desk closed, then the cover swings open
+  requestAnimationFrame(() => requestAnimationFrame(() => book.classList.remove("intro")));
+  setTimeout(() => { V.opened = true; if (V.cur === 0) goTo(1, { side: "right" }); }, reduceMotion ? 50 : 1100);
+  initStore();
+}
+boot();
+})();
+</script>
+
+</body>
+</html>
