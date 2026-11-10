@@ -244,19 +244,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 }
 .pocket:hover .card { transition: transform .06s linear; }
 .card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.card::after { /* glare */
-  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s;
-  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.42), transparent 55%);
-  mix-blend-mode: overlay;
-}
-.pocket:hover .card::after { opacity: 1; }
-.card.foil::before {
-  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; mix-blend-mode: color-dodge; opacity: .34;
-  background: linear-gradient(115deg, #ff5f6d, #ffc371 18%, #47e891 36%, #3fc9ff 54%, #a66bff 72%, #ff5fb2 90%);
-  background-size: 300% 300%; background-position: var(--mx, 50%) var(--my, 50%);
-  transition: opacity .2s;
-}
-.pocket:hover .card.foil::before { opacity: .55; }
+/* No shine on cards in the binder: holo and glare only show when a card is lifted out (the card view below). */
 
 /* generated card faces (used when a card has no photo) */
 .gen {
@@ -341,8 +329,6 @@ textarea.code { font-family: var(--font-mono); font-size: 12px; line-height: 1.5
 .detail { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
 .big-card { position: relative; width: 100%; aspect-ratio: 63 / 88; max-width: 100%; }
 .big-card .card { inset: 0; border-radius: 4.5%; box-shadow: 0 20px 40px -12px rgba(0,0,0,.55); }
-.big-card:hover .card::after { opacity: 1; }
-.big-card:hover .card.foil::before { opacity: .55; }
 .loc { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 
 /* customize */
@@ -436,19 +422,25 @@ body.view-only .edit-only { display: none !important; }
 /* ---------- Phones and short screens: body.compact is set by script (narrow, or short like a phone on its side) ---------- */
 body:not(.compact) .compact-only { display: none !important; }
 #app { height: 100%; height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
-html, body { overscroll-behavior: none; }
+html, body { overscroll-behavior: none; overflow-x: hidden; max-width: 100%; }
+.topbar, .pager { max-width: 100vw; min-width: 0; overflow: hidden; }
 body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
 /* iPhone Safari zooms into any text box under 16px and stays zoomed */
 @media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
 body.compact .wide-only, body.compact .status-chip, body.compact .brand-text { display: none; }
 body.compact .topbar { flex-wrap: nowrap; gap: 8px; padding-block: 8px; }
 body.compact .brand-mark { width: 26px; height: 26px; }
-body.compact .user-btn { min-width: 0; flex: 0 1 auto; height: 34px; padding: 0 10px; gap: 6px; }
-body.compact .user-btn #userName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 34vw; }
-body.compact .user-btn .lock { font-size: 10px; padding-left: 6px; }
+body.compact .user-btn { min-width: 0; flex: 0 1 auto; height: 34px; padding: 0 9px; gap: 5px; overflow: hidden; }
+body.compact .user-btn svg { flex: none; }
+body.compact .user-btn #userName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 28vw; }
+/* on phones the lock state is a small coloured dot instead of words */
+body.compact .user-btn .lock { font-size: 0; width: 8px; height: 8px; border-radius: 50%; padding: 0; margin: 0; border: 0; background: var(--muted); flex: none; }
+body.compact .user-btn .lock.editing { background: var(--ok); }
+body.compact .brand { flex: none; }
 body.compact .spacer { flex: 1 1 0; }
-body.compact .actions { flex: none; flex-wrap: nowrap; gap: 6px; }
-body.compact .actions .btn { height: 34px; width: 38px; padding: 0; justify-content: center; }
+body.compact .actions { flex: none; flex-wrap: nowrap; gap: 5px; }
+body.compact .actions .btn { height: 34px; width: 36px; padding: 0; justify-content: center; }
+@media (max-width: 350px) { body.compact .actions .btn { width: 32px; } body.compact .topbar { gap: 6px; } }
 body.compact .btn .lbl { display: none; }
 body.compact .search { display: none; }
 body.compact.search-open .topbar { flex-wrap: wrap; }
@@ -478,6 +470,56 @@ dialog.sheet { width: min(420px, 100vw); }
   .big-card { width: min(240px, 70vw); margin: 0 auto; }
   .pager input[type=range] { display: none; }
 }
+/* ---------- Card view: a tapped card slides out of its pocket, spins once and can be tilted ---------- */
+.viewer { position: fixed; inset: 0; z-index: 8000; display: grid; place-items: center; touch-action: none; -webkit-user-select: none; user-select: none; }
+.v-backdrop { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, rgba(20,24,30,.55), rgba(5,7,10,.88)); opacity: 0; transition: opacity .35s ease; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.viewer.on .v-backdrop { opacity: 1; }
+.v-mover { position: absolute; left: 50%; top: 46%; width: var(--vw); height: calc(var(--vw) * 88 / 63); margin-left: calc(var(--vw) / -2); margin-top: calc(var(--vw) * 88 / 63 / -2); will-change: transform; perspective: 1400px; }
+.v-spin { position: absolute; inset: 0; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; will-change: transform; }
+.v-tilt { position: absolute; inset: 0; transform-style: preserve-3d; -webkit-transform-style: preserve-3d; transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.viewer.dragging .v-tilt { transition: transform .05s linear; }
+.v-face { position: absolute; inset: 0; border-radius: 4.6% / 3.3%; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 30px 60px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.06); }
+.v-front .card { inset: 0; border-radius: 0; transform: none; transition: none; box-shadow: none; }
+.v-back { transform: rotateY(180deg); background:
+  radial-gradient(circle at 50% 50%, color-mix(in oklab, var(--binder) 65%, white) 0 13%, transparent 13.5%),
+  radial-gradient(circle at 50% 50%, rgba(0,0,0,.35) 0 17%, transparent 17.5%),
+  repeating-conic-gradient(from 0deg, color-mix(in oklab, var(--binder) 85%, black) 0 10deg, var(--binder) 10deg 20deg),
+  var(--binder); }
+.v-back::before { content: ""; position: absolute; inset: 5%; border: 3px solid rgba(255,255,255,.3); border-radius: 4% / 3%; }
+.v-back::after { content: "POCKET BINDER"; position: absolute; left: 0; right: 0; bottom: 11%; text-align: center; font-family: var(--font-display); font-weight: 800; letter-spacing: .2em; font-size: calc(var(--vw) * .05); color: rgba(255,255,255,.75); }
+/* light and surface layers, driven by --mx / --my (where the light hits, 0–100%) */
+.v-holo, .v-glare, .v-tex { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; }
+.v-holo { mix-blend-mode: color-dodge; opacity: var(--holo, .12);
+  background:
+    repeating-linear-gradient(calc(110deg + (var(--mx, 50) - 50) * .6deg), rgba(255,0,92,.5) 0%, rgba(255,210,0,.45) 5%, rgba(0,255,138,.45) 10%, rgba(0,207,255,.5) 15%, rgba(204,76,250,.5) 20%, rgba(255,0,92,.5) 25%),
+    radial-gradient(circle at calc(var(--mx, 50) * 1%) calc(var(--my, 50) * 1%), rgba(255,255,255,.55), transparent 50%);
+  background-size: 300% 300%, 100% 100%;
+  background-position: calc(var(--mx, 50) * 1%) calc(var(--my, 50) * 1%), center;
+  filter: brightness(.9) contrast(1.4) saturate(1.2); }
+.v-front.foil .v-holo { --holo: .42; }
+/* the shine grows as the card tilts (--tilt 0 → 1) so the card reads clearly when held still */
+.v-front .v-holo { opacity: calc(var(--holo, .12) * (.45 + var(--tilt, 0) * .9)); }
+.v-glare { mix-blend-mode: overlay; background: radial-gradient(farthest-corner circle at calc(var(--mx, 50) * 1%) calc(var(--my, 50) * 1%), rgba(255,255,255,.7) 6%, rgba(255,255,255,.14) 26%, rgba(0,0,0,.28) 95%); opacity: calc(.25 + var(--tilt, 0) * .5); }
+/* paper grain and the fine lines of a printed card */
+.v-tex { mix-blend-mode: soft-light; opacity: .55; background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+  repeating-linear-gradient(45deg, rgba(255,255,255,.07) 0 1px, transparent 1px 3px); }
+.v-front.foil .v-tex { opacity: .75; background:
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5  0 0 0 0 .5  0 0 0 0 .5  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+  repeating-radial-gradient(circle at 50% 60%, rgba(255,255,255,.1) 0 1px, transparent 1px 4px); }
+.v-bar { position: absolute; left: 0; right: 0; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 0 16px; opacity: 0; transform: translateY(10px); transition: opacity .3s ease .55s, transform .3s ease .55s; }
+.viewer.on .v-bar { opacity: 1; transform: none; }
+.viewer.closing .v-bar { transition-delay: 0s; opacity: 0; }
+.v-bar .btn { height: 42px; padding: 0 18px; }
+.v-title { position: absolute; left: 16px; right: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); text-align: center; color: #eef1f4; opacity: 0; transition: opacity .3s ease .55s; }
+.viewer.on .v-title { opacity: 1; }
+.viewer.closing .v-title { transition-delay: 0s; opacity: 0; }
+.v-title b { display: block; font-family: var(--font-display); font-size: 20px; }
+.v-title span { font-family: var(--font-mono); font-size: 12px; color: #a9b2bb; }
+.pocket.lifted .card, .pocket.lifted .chk { visibility: hidden; }
+.save-btn { position: relative; }
+.save-btn .dot { position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%; background: #ffcf4a; box-shadow: 0 0 0 2px var(--surface); display: none; }
+.save-btn.has-changes .dot { display: block; }
 @media (prefers-reduced-motion: reduce) {
   .book, .leaf, .leaf.cover, .card, .spine { transition-duration: .01s !important; transition-delay: 0s !important; }
   .pocket.pulse .card { animation: none; outline: 3px solid #ffd666; }
@@ -502,6 +544,7 @@ dialog.sheet { width: min(420px, 100vw); }
     </label>
     <div class="actions">
       <button class="btn icon compact-only" id="searchToggle" aria-label="Find a card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <button class="btn save-btn" id="saveBtn" hidden aria-label="Save binder to the site"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 7.97"/><path d="M12 12v8m0-8-3 3m3-3 3 3"/></svg><span class="lbl">Save binder</span><i class="dot" aria-hidden="true"></i></button>
       <button class="btn primary" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg><span class="lbl">Scan pages</span></button>
       <button class="btn wide-only" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Import</span></button>
       <button class="btn wide-only" id="imagesBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Get images</span></button>
@@ -596,6 +639,26 @@ dialog.sheet { width: min(420px, 100vw); }
           <label class="field"><span>Custom down</span><input id="cRows" type="number" min="1" max="6"></label>
         </div>
         <p class="help">Changing the layout reflows your cards in order. Pocket 1 stays pocket 1.</p>
+      </div>
+      <div class="panel" id="ghPanel" hidden>
+        <p class="section-title">Saving to the site</p>
+        <div id="ghWeb" hidden style="display:grid; gap:10px">
+          <p class="help">Save binder uploads this binder to your GitHub site so every device sees it. This device needs a GitHub key that can change only the Pocket Binder repository:</p>
+          <ol class="help" style="margin:0; padding-left:20px; display:grid; gap:4px">
+            <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → new fine-grained token</a> (sign in if asked).</li>
+            <li>Name it "Pocket Binder", pick an expiration, and under <b>Repository access</b> choose <b>Only select repositories</b> → <b>pocket-binder</b>.</li>
+            <li>Under <b>Permissions → Repository permissions</b>, set <b>Contents</b> to <b>Read and write</b>.</li>
+            <li>Click <b>Generate token</b>, copy it, and paste it here.</li>
+          </ol>
+          <label class="field"><span>GitHub key for this device</span><input id="ghToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></label>
+          <div class="seg"><button type="button" class="btn" id="ghSaveKey">Save key</button><button type="button" class="btn" id="ghTest">Test key</button><button type="button" class="btn danger" id="ghClear">Remove key</button></div>
+          <p class="help">The key stays on this device. Anyone who can unlock this binder here could use it to change the site, and you can cancel it on GitHub at any time.</p>
+        </div>
+        <div id="ghDesk" hidden style="display:grid; gap:10px">
+          <p class="help">Save binder uploads this binder to your GitHub site using this PC's GitHub sign-in, so your phone and other devices see it.</p>
+          <label class="field"><span>Save as username</span><input id="siteUser" type="text" maxlength="32" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <p class="progress" id="ghMsg"></p>
       </div>
       <div class="panel" id="sxPanel" hidden>
         <p class="section-title">Scrydex card pictures (optional, paid)</p>
@@ -719,10 +782,46 @@ dialog.sheet { width: min(420px, 100vw); }
   </div>
 </dialog>
 
+<!-- Save to the site -->
+<dialog id="saveDlg" aria-labelledby="saveTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h2 id="saveTitle">Save binder</h2><button type="button" class="x" data-close aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-body">
+      <p class="help" id="saveIntro"></p>
+      <div class="gi-bar" aria-hidden="true"><i id="saveFill"></i></div>
+      <p class="progress" id="saveMsg"></p>
+      <div class="panel" id="saveConflict" hidden>
+        <p class="help" id="saveConflictMsg"></p>
+        <div class="seg">
+          <button type="button" class="btn" id="saveLoadSite">Load the site version</button>
+          <button type="button" class="btn danger" id="saveReplace">Replace it with this device's</button>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="btn" data-close id="saveClose">Close</button><button type="button" class="btn primary" id="saveGo">Save to the site</button></div>
+  </div>
+</dialog>
+
+<!-- Card view -->
+<div class="viewer" id="viewer" hidden aria-modal="true" role="dialog" aria-labelledby="vName">
+  <div class="v-backdrop" id="vBackdrop"></div>
+  <div class="v-title"><b id="vName"></b><span id="vMeta"></span></div>
+  <div class="v-mover" id="vMover"><div class="v-spin" id="vSpin"><div class="v-tilt" id="vTilt">
+    <div class="v-face v-front" id="vFront"></div>
+    <div class="v-face v-back"></div>
+  </div></div></div>
+  <div class="v-bar">
+    <button type="button" class="btn" id="vGyro" hidden>Tilt with phone</button>
+    <button type="button" class="btn primary" id="vEdit">Details</button>
+    <button type="button" class="btn" id="vClose">Close</button>
+  </div>
+</div>
+
 <!-- More menu (phones) -->
 <dialog id="moreDlg" class="sheet" aria-label="More">
   <div class="dlg">
     <div class="more-list" id="moreList">
+      <button type="button" class="btn" data-do="saveBtn" id="moreSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4 4 0 0 1-.5 7.97"/><path d="M12 12v8m0-8-3 3m3-3 3 3"/></svg>Save binder to the site</button>
       <button type="button" class="btn" data-do="imagesBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Get images</button>
       <button type="button" class="btn" data-do="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Import cards</button>
       <button type="button" class="btn" data-do="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Export binder file</button>
@@ -905,6 +1004,7 @@ function saveLocalSoon(copy) {
   clearTimeout(localTimer);
   if (readBlocked) return;
   if (copy !== true) S.meta.editedAt = Date.now();
+  updateSaveDot();
   localTimer = setTimeout(async () => {
     const data = { settings: { ...S.settings }, cards: S.cards.filter(c => !c.sample).map(cleanCard), published: S.meta.published || 0, editedAt: S.meta.editedAt || 0 };
     try { await IDB.set(LS_KEY, data); try { localStorage.removeItem(LS_KEY); } catch {} return; } catch {}
@@ -1015,11 +1115,14 @@ function genFace(c) {
   const h = (hueOf(c.set || c.name) + hueOf(c.name) % 24) % 360;
   return `<div class="gen" style="--h:${h}"><div class="gen-top"><span class="gen-name">${esc(c.name || "Unnamed card")}</span><span class="gen-rar">${rarGlyph(c.rarity)}</span></div><div class="gen-art"><span>${esc(mono(c.name))}</span></div><div class="gen-bot"><span class="gen-set">${esc(c.set || "")}</span><span class="gen-num">${esc(c.number || "")}</span></div></div>`;
 }
-function safeImg(src) { return /^(data:image\/|blob:|https:\/\/)/i.test(src || "") ? src : ""; }
+// pictures saved to the site are stored as site paths like users/akaflares/img/<hash>.jpg
+function safeImg(src) { return /^(data:image\/|blob:|https:\/\/)/i.test(src || "") || /^users\/[a-z0-9_.-]+\/img\/[a-z0-9]+\.(jpg|png|webp|gif)$/i.test(src || "") ? src : ""; }
 function cardHTML(c) {
   const foil = FOIL_RE.test(c.rarity || "") ? " foil" : "";
   const src = safeImg(c.image);
-  const inner = src ? `<img src="${esc(src)}" alt="${esc(c.name)}" data-cid="${esc(c.id)}" draggable="false">` : genFace(c);
+  // a picture saved moments ago may not be on the site yet: fall back to GitHub's copy of the file
+  const alt = /^users\//.test(src) ? ` data-alt="${esc(RAW_URL + src)}"` : "";
+  const inner = src ? `<img src="${esc(src)}" alt="${esc(c.name)}" data-cid="${esc(c.id)}"${alt} draggable="false">` : genFace(c);
   return `<div class="card${foil}">${inner}</div>`;
 }
 document.addEventListener("error", e => {
@@ -1241,11 +1344,11 @@ const book = $("#book");
 book.addEventListener("click", e => {
   if (V.cur === 0 && e.target.closest(".cover")) { next(); return; }
   const pk = e.target.closest(".pocket");
-  if (pk) { openCard(+pk.dataset.slot); return; }
+  if (pk) { pk.classList.contains("empty") ? openCard(+pk.dataset.slot) : openViewer(+pk.dataset.slot); return; }
 });
 book.addEventListener("keydown", e => {
   const pk = e.target.closest(".pocket");
-  if (pk && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openCard(+pk.dataset.slot); }
+  if (pk && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pk.classList.contains("empty") ? openCard(+pk.dataset.slot) : openViewer(+pk.dataset.slot); }
 });
 if (canHover) {
   book.addEventListener("pointermove", e => {
@@ -1376,7 +1479,7 @@ $("#edgeNext").onclick = next; $("#edgePrev").onclick = prev;
 $("#toggleBtn").onclick = () => V.cur === 0 ? goTo(1, { side: "right" }) : goTo(0, { stagger: 70, side: "right" });
 $("#pageRange").addEventListener("input", e => goTo(+e.target.value, { stagger: 50, side: "right" }));
 document.addEventListener("keydown", e => {
-  if (document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
+  if (VW.open || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || "")) return;
   if (e.key === "ArrowRight") { e.preventDefault(); next(); }
   if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
 });
@@ -1402,6 +1505,7 @@ $("#searchInput").addEventListener("blur", () => {
 });
 $("#moreBtn").onclick = () => {
   $("#moreList [data-do=imagesBtn]").hidden = $("#imagesBtn").hidden;
+  $("#moreSave").hidden = $("#saveBtn").hidden;
   $("#moreToggle span").textContent = V.cur === 0 ? "Open binder" : "Close binder";
   $("#moreDlg").showModal();
 };
@@ -1546,6 +1650,7 @@ function openCustom() {
   $("#cCols").value = S.settings.cols; $("#cRows").value = S.settings.rows;
   renderCustom(); $("#clearBtn").textContent = "Remove all cards"; clearArmed = false;
   $("#sxPanel").hidden = !DESKTOP;
+  ghPanelInit();
   if (DESKTOP) { const sx = sxConf(); $("#sxTeam").value = sx.team; $("#sxKey").value = sx.key; document.querySelector(`input[name="sxmode"][value="${sx.mode}"]`).checked = true; sxStatus(); }
   $("#customDlg").showModal();
 }
@@ -2497,6 +2602,313 @@ $("#giStart").onclick = async () => {
   }
 };
 
+/* ---------------- Save binder to the site (GitHub) ----------------
+   The binder is stored in the site's GitHub repository as users/<name>.json plus one picture file
+   per card (users/<name>/img/<hash>.jpg), so a save only uploads pictures that changed.
+   Desktop: the app's helper talks to GitHub with this PC's GitHub CLI sign-in.
+   Website: each device uses a fine-grained GitHub key limited to this one repository. */
+const GH = { owner: "tannerreardon-web", repo: "pocket-binder", branch: "main" };
+if (WEB && /\.github\.io$/i.test(location.hostname)) {
+  GH.owner = location.hostname.split(".")[0];
+  GH.repo = location.pathname.split("/").filter(Boolean)[0] || GH.repo;
+}
+const SITE_URL = `https://${GH.owner}.github.io/${GH.repo}/`;
+const RAW_URL = `https://raw.githubusercontent.com/${GH.owner}/${GH.repo}/${GH.branch}/`;
+const PB_SECRET = "__PB_SECRET__"; // filled in by PocketBinder.exe when it starts
+const deskSecret = () => (/^[0-9a-f]{64}$/.test(PB_SECRET) ? PB_SECRET : "");
+const GH_KEY = "pb:ghtoken", SITE_USER_KEY = "pb:siteUser";
+const ghToken = () => { try { return localStorage.getItem(GH_KEY) || ""; } catch { return ""; } };
+const siteUser = () => { if (WEB) return U.name; try { return localStorage.getItem(SITE_USER_KEY) || "akaFlares"; } catch { return "akaFlares"; } };
+const canSave = () => DESKTOP || (WEB && !!U.name);
+const repoPath = p => `/repos/${GH.owner}/${GH.repo}${p}`;
+async function ghApi(method, path, body) {
+  let r;
+  try {
+    if (DESKTOP) {
+      const u = `http://localhost:47123/gh?s=${deskSecret()}&m=${method}&p=${encodeURIComponent(repoPath(path))}`;
+      r = await fetch(u, body ? { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(body) } : { cache: "no-store" });
+    } else {
+      const t = ghToken(); if (!t) throw { code: "no_key" };
+      r = await fetch("https://api.github.com" + repoPath(path), { method, cache: "no-store",
+        headers: { Authorization: "Bearer " + t, Accept: "application/vnd.github+json", ...(body ? { "Content-Type": "application/json" } : {}) },
+        body: body ? JSON.stringify(body) : undefined });
+    }
+  } catch (e) { if (e && e.code) throw e; throw { code: "offline" }; }
+  if (r.status === 401) throw { code: "auth" };
+  if (r.status === 403 || r.status === 429) { const t = await r.text(); throw { code: /rate limit/i.test(t) ? "rate" : (DESKTOP && /isn't signed in/.test(t) ? "no_gh" : "auth"), text: t }; }
+  if (r.status === 503 && DESKTOP) throw { code: "no_gh" };
+  if (r.status === 404) return null;
+  if (!r.ok) throw { code: "http", status: r.status, text: await r.text().catch(() => "") };
+  return r.status === 204 ? {} : r.json();
+}
+async function sha1Hex(text) {
+  const b = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(text));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("").slice(0, 24);
+}
+function b64ToText(b64) { const bin = atob(String(b64).replace(/\s/g, "")); const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return new TextDecoder().decode(bytes); }
+const saveErrText = e => ({
+  no_key: "This device doesn't have a GitHub key yet. Add one in Customize → Saving to the site.",
+  no_gh: "This PC isn't signed in to GitHub. Open a terminal and run: gh auth login",
+  auth: WEB ? "GitHub didn't accept this device's key. Check that it hasn't expired and that it can change the pocket-binder repository (Contents: Read and write)." : "GitHub didn't accept this PC's sign-in. Run: gh auth login",
+  rate: "GitHub is limiting requests right now. Wait a few minutes and save again.",
+  offline: DESKTOP ? "Couldn't reach GitHub. Check your internet connection, and that Pocket Binder was opened from PocketBinder.exe." : "Couldn't reach GitHub. Check your internet connection.",
+}[e && e.code] || "Saving didn't finish (" + ((e && (e.status || e.code)) || "unknown error") + "). Nothing on the site was changed; try again.");
+
+// Is there anything here that isn't on the site yet?
+function updateSaveDot() {
+  const b = $("#saveBtn"); if (!b) return;
+  const dirty = !isSample() && S.cards.length > 0 && (S.meta.editedAt || 0) > (S.meta.published || 0);
+  b.classList.toggle("has-changes", dirty);
+  b.title = dirty ? "You have changes that aren't saved to the site yet" : "Save binder to the site";
+}
+const sv = { busy: false, force: false };
+function openSave() {
+  if (!canSave()) return;
+  if (WEB && !canEdit()) return;
+  if (WEB && !ghToken()) { openCustom(); setTimeout(() => $("#ghPanel").scrollIntoView({ behavior: "smooth", block: "start" }), 120); $("#ghMsg").textContent = "Add a GitHub key for this device to save to the site."; return; }
+  const user = siteUser();
+  $("#saveIntro").textContent = `Uploads ${user}'s binder (${S.cards.filter(c => !c.sample).length} cards) to your site, so it shows on every device. New or changed pictures are uploaded; the rest are already there.`;
+  $("#saveMsg").textContent = ""; $("#saveFill").style.width = "0"; $("#saveConflict").hidden = true;
+  $("#saveGo").hidden = false; $("#saveGo").disabled = false; sv.force = false;
+  $("#saveDlg").showModal();
+}
+$("#saveBtn").onclick = openSave;
+$("#saveGo").onclick = () => runSave(false);
+$("#saveReplace").onclick = () => runSave(true);
+$("#saveLoadSite").onclick = async () => {
+  $("#saveConflict").hidden = true; $("#saveMsg").textContent = "Loading the site version…";
+  seedCache.delete(ukey(siteUser()));
+  const seed = await fetchSeed(ukey(siteUser()), true);
+  if (!seed) { $("#saveMsg").textContent = "Couldn't load the site version. Try again."; return; }
+  applyBinderData(seed, siteUser(), true); saveLocalSoon(true);
+  V.cur = 0; geometry(); applyLook(); buildBook(); setChip(); updateSaveDot();
+  setTimeout(() => goTo(1, { side: "right" }), 300);
+  $("#saveDlg").close(); toast("Loaded the version saved on the site");
+};
+async function runSave(force) {
+  if (sv.busy) return;
+  if (isSample() || !S.cards.length) { $("#saveMsg").textContent = "Add some of your own cards first. Sample cards aren't saved."; return; }
+  sv.busy = true; $("#saveGo").disabled = true; $("#saveConflict").hidden = true;
+  const msg = t => { $("#saveMsg").textContent = t; };
+  const fill = f => { $("#saveFill").style.width = Math.round(f * 100) + "%"; };
+  const user = siteUser(), key = ukey(user), base = `users/${key}`;
+  try {
+    msg("Checking the site…"); fill(.03);
+    let ref = await ghApi("GET", `/git/ref/heads/${GH.branch}`);
+    if (!ref) throw { code: "http", status: "branch not found" };
+    const head = ref.object.sha;
+    const commit = await ghApi("GET", `/git/commits/${head}`);
+    const tree = await ghApi("GET", `/git/trees/${commit.tree.sha}?recursive=1`);
+    const files = new Map((tree.tree || []).filter(t => t.type === "blob").map(t => [t.path, t]));
+    // what's on the site now
+    const cur = files.get(base + ".json");
+    let remote = null;
+    if (cur && cur.size < 3_000_000) { try { remote = JSON.parse(b64ToText((await ghApi("GET", `/git/blobs/${cur.sha}`)).content)); } catch {} }
+    // pictures: each embedded picture becomes its own file, named by its contents
+    const cards = S.cards.filter(c => !c.sample).map(cleanCard);
+    const uploads = [], keep = new Set();
+    for (const c of cards) {
+      const m = /^data:image\/(jpeg|jpg|png|webp|gif);base64,(.+)$/i.exec(c.image || "");
+      if (m) {
+        const ext = /jpe?g/i.test(m[1]) ? "jpg" : m[1].toLowerCase();
+        const path = `${base}/img/${await sha1Hex(m[2])}.${ext}`;
+        c.image = path; keep.add(path);
+        if (!files.has(path) && !uploads.some(u => u.path === path)) uploads.push({ path, b64: m[2] });
+      } else if (c.image) {
+        // pictures already on the site may be written as full web addresses; store them as site paths
+        for (const pre of [SITE_URL, RAW_URL]) if (c.image.startsWith(pre)) c.image = c.image.slice(pre.length);
+        if (c.image.startsWith(base + "/img/")) keep.add(c.image);
+      }
+    }
+    // already identical to the site? then there's nothing to upload
+    const sameAs = r => r && JSON.stringify(r.cards) === JSON.stringify(cards) && JSON.stringify(r.settings) === JSON.stringify({ ...S.settings });
+    if (!uploads.length && sameAs(remote)) {
+      S.meta.published = +remote.published || Date.now(); saveLocalSoon(true); updateSaveDot();
+      fill(1); msg("Already saved. The site has exactly this binder."); $("#saveGo").hidden = true;
+      return;
+    }
+    // was a different version saved from another device since this one last loaded or saved?
+    if (remote && !force && (+remote.published || 0) > (S.meta.published || 0)) {
+      $("#saveConflictMsg").textContent = `The site has a different version of ${user}'s binder, saved ${new Date(+remote.published).toLocaleString()} from ${remote.savedFrom ? "the " + remote.savedFrom : "another device"}. Saving now would replace it with this device's binder.`;
+      $("#saveConflict").hidden = false; msg(""); fill(0);
+      return;
+    }
+    const entries = [];
+    for (let i = 0; i < uploads.length; i++) {
+      msg(`Uploading picture ${i + 1} of ${uploads.length}…`); fill(.05 + .85 * (i / Math.max(1, uploads.length)));
+      let b = null;
+      for (let a = 0; a < 3 && !b; a++) {
+        try { b = await ghApi("POST", "/git/blobs", { content: uploads[i].b64, encoding: "base64" }); }
+        catch (e) { if (e.code !== "rate" && e.code !== "http") throw e; await sleep(4000 * (a + 1)); }
+      }
+      if (!b) throw { code: "rate" };
+      entries.push({ path: uploads[i].path, mode: "100644", type: "blob", sha: b.sha });
+      if (i < uploads.length - 1) await sleep(650); // GitHub allows about 80 uploads a minute
+    }
+    msg("Saving the binder…"); fill(.93);
+    const published = Date.now();
+    const doc = { published, savedFrom: DESKTOP ? "desktop app" : "website", settings: { ...S.settings }, cards };
+    entries.push({ path: base + ".json", mode: "100644", type: "blob", content: JSON.stringify(doc) });
+    for (const p of files.keys()) if (p.startsWith(base + "/img/") && !keep.has(p)) entries.push({ path: p, mode: "100644", type: "blob", sha: null });
+    const newTree = await ghApi("POST", "/git/trees", { base_tree: commit.tree.sha, tree: entries });
+    const nc = await ghApi("POST", "/git/commits", { message: `Save ${user}'s binder (${cards.length} cards) from the ${DESKTOP ? "desktop app" : "website"}`, tree: newTree.sha, parents: [head] });
+    await ghApi("PATCH", `/git/refs/heads/${GH.branch}`, { sha: nc.sha });
+    S.meta.published = published; saveLocalSoon(true); updateSaveDot();
+    seedCache.delete(key);
+    fill(1);
+    msg(`Saved. ${uploads.length ? `${uploads.length} new picture${uploads.length === 1 ? "" : "s"} uploaded. ` : ""}Other devices get it the next time they open ${user}'s binder.`);
+    $("#saveGo").hidden = true;
+    toast("Binder saved to the site");
+  } catch (e) {
+    msg(saveErrText(e)); fill(0);
+  } finally { sv.busy = false; $("#saveGo").disabled = false; }
+}
+// Customize → Saving to the site
+function ghPanelInit() {
+  $("#ghPanel").hidden = !canSave();
+  $("#ghWeb").hidden = !WEB; $("#ghDesk").hidden = !DESKTOP;
+  if (WEB) { $("#ghToken").value = ghToken(); $("#ghMsg").textContent = ghToken() ? "This device has a GitHub key." : "No GitHub key on this device yet."; }
+  if (DESKTOP) {
+    $("#siteUser").value = siteUser();
+    $("#ghMsg").textContent = "Checking this PC's GitHub sign-in…";
+    fetch(`http://localhost:47123/gh/ping?s=${deskSecret()}`).then(r => r.ok ? "Ready: this PC is signed in to GitHub." : r.text()).then(t => { $("#ghMsg").textContent = t; })
+      .catch(() => { $("#ghMsg").textContent = "Couldn't reach the Pocket Binder helper. Open the app from PocketBinder.exe."; });
+  }
+}
+$("#ghSaveKey").onclick = () => { const t = $("#ghToken").value.trim(); if (!t) { $("#ghMsg").textContent = "Paste the key first."; return; } try { localStorage.setItem(GH_KEY, t); } catch {} $("#ghMsg").textContent = "Key saved on this device."; };
+$("#ghClear").onclick = () => { try { localStorage.removeItem(GH_KEY); } catch {} $("#ghToken").value = ""; $("#ghMsg").textContent = "Key removed from this device."; };
+$("#ghTest").onclick = async () => {
+  $("#ghSaveKey").click(); if (!ghToken()) return;
+  $("#ghMsg").textContent = "Testing…";
+  try {
+    const t = ghToken();
+    const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}`, { headers: { Authorization: "Bearer " + t, Accept: "application/vnd.github+json" }, cache: "no-store" });
+    if (r.status === 401) throw { code: "auth" };
+    const j = await r.json();
+    $("#ghMsg").textContent = r.ok && j.permissions && j.permissions.push ? "The key works. Save binder is ready on this device." : "The key works but can't change the pocket-binder repository. Set Contents to Read and write for that repository.";
+  } catch (e) { $("#ghMsg").textContent = saveErrText(e.code ? e : { code: "offline" }); }
+};
+$("#siteUser").addEventListener("change", e => { const v = e.target.value.trim(); if (validName(v)) { try { localStorage.setItem(SITE_USER_KEY, v); } catch {} $("#ghMsg").textContent = `Saving as ${v}.`; } else $("#ghMsg").textContent = "Use 2 to 32 letters, numbers, dots, dashes or underscores."; });
+
+/* ---------------- Card view: slide out of the pocket, spin once, tilt to see the holo ---------------- */
+const VW = { open: false, slot: -1, gyro: false, g0: null };
+let vp = null;
+function vSize() { return Math.min(innerWidth * .78, 380, (innerHeight - 190) * 63 / 88); }
+function setTilt(rx, ry, mx, my, dragging) {
+  const t = $("#vTilt"), f = $("#vFront");
+  t.style.setProperty("--rx", rx.toFixed(2) + "deg"); t.style.setProperty("--ry", ry.toFixed(2) + "deg");
+  f.style.setProperty("--mx", mx.toFixed(1)); f.style.setProperty("--my", my.toFixed(1));
+  f.style.setProperty("--tilt", Math.min(1, Math.hypot(rx / 16, ry / 18, (mx - 50) / 60, (my - 50) / 60)).toFixed(2));
+  $("#viewer").classList.toggle("dragging", !!dragging);
+}
+function pocketOffset(pk, vw) {
+  const r = pk.querySelector(".card").getBoundingClientRect();
+  return { sx: r.left + r.width / 2 - innerWidth / 2, sy: r.top + r.height / 2 - innerHeight * .46, s0: r.width / vw, h: r.height };
+}
+function openViewer(slot) {
+  const c = slotMap().get(slot), pk = book.querySelector(`.pocket[data-slot="${slot}"]`);
+  if (!c || !pk) { openCard(slot); return; }
+  const v = $("#viewer"), vw = vSize();
+  $$(".pocket.lifted").forEach(p => p.classList.remove("lifted"));
+  $("#vMover").getAnimations().forEach(a => a.cancel()); $("#vSpin").getAnimations().forEach(a => a.cancel());
+  VW.open = true; VW.slot = slot; VW.g0 = null;
+  v.style.setProperty("--vw", vw + "px");
+  const f = $("#vFront");
+  f.className = "v-face v-front" + (FOIL_RE.test(c.rarity || "") ? " foil" : "");
+  f.innerHTML = cardHTML(c) + '<div class="v-holo"></div><div class="v-tex"></div><div class="v-glare"></div>';
+  $("#vName").textContent = c.name || "Card";
+  $("#vMeta").textContent = [c.set, c.number, c.rarity].filter(Boolean).join(" · ");
+  $("#vGyro").hidden = VW.gyro || !(matchMedia("(pointer: coarse)").matches && "DeviceOrientationEvent" in window);
+  setTilt(0, 0, 30, 20, false);
+  const o = pocketOffset(pk, vw);
+  v.hidden = false; v.classList.remove("closing");
+  pk.classList.add("lifted");
+  requestAnimationFrame(() => v.classList.add("on"));
+  if (reduceMotion) { setTilt(0, 0, 50, 50, false); return; }
+  // 1) slide up out of the pocket  2) fly to the middle while spinning a full turn
+  $("#vMover").animate([
+    { transform: `translate(${o.sx}px, ${o.sy}px) scale(${o.s0})` },
+    { transform: `translate(${o.sx}px, ${o.sy - o.h * .95}px) scale(${o.s0 * 1.05})`, offset: .24 },
+    { transform: "translate(0px, 0px) scale(1)" },
+  ], { duration: 950, easing: "cubic-bezier(.3,.7,.2,1)" });
+  $("#vSpin").animate([
+    { transform: "rotateY(0deg) rotateX(0deg)" },
+    { transform: "rotateY(0deg) rotateX(10deg)", offset: .24 },
+    { transform: "rotateY(360deg) rotateX(0deg)" },
+  ], { duration: 950, easing: "cubic-bezier(.5,0,.25,1)" });
+  // the light sweeps across the card as it lands
+  let t0 = performance.now();
+  const sweep = now => { if (!VW.open || vp) return; const k = Math.min(1, (now - t0) / 1150); setTilt(0, 0, 15 + k * 70, 20 + k * 40, false); if (k < 1) requestAnimationFrame(sweep); else setTilt(0, 0, 50, 50, false); };
+  requestAnimationFrame(sweep);
+}
+function closeViewer(instant) {
+  if (!VW.open) return;
+  VW.open = false;
+  const v = $("#viewer"), pk = book.querySelector(`.pocket[data-slot="${VW.slot}"]`);
+  let finished = false;
+  const done = () => {
+    if (finished) return; finished = true;
+    if (VW.open) return; // reopened in the meantime
+    v.hidden = true; v.classList.remove("closing", "on");
+    $$(".pocket.lifted").forEach(p => p.classList.remove("lifted"));
+    $("#vMover").getAnimations().forEach(a => a.cancel()); $("#vSpin").getAnimations().forEach(a => a.cancel());
+  };
+  v.classList.add("closing"); v.classList.remove("on"); setTilt(0, 0, 50, 50, false);
+  if (instant || reduceMotion || !pk) { done(); return; }
+  const o = pocketOffset(pk, vSize());
+  const a = $("#vMover").animate([
+    { transform: "translate(0px, 0px) scale(1)" },
+    { transform: `translate(${o.sx}px, ${o.sy - o.h * .95}px) scale(${o.s0 * 1.05})`, offset: .68 },
+    { transform: `translate(${o.sx}px, ${o.sy}px) scale(${o.s0})` },
+  ], { duration: 520, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" });
+  a.onfinish = done;
+  setTimeout(done, 650); // in case the browser skips the finish event (background tab, low power mode)
+}
+function tiltAt(e, dragging) {
+  const r = $("#vMover").getBoundingClientRect();
+  const px = clamp((e.clientX - r.left) / r.width, 0, 1), py = clamp((e.clientY - r.top) / r.height, 0, 1);
+  setTilt((.5 - py) * 32, (px - .5) * 36, px * 100, py * 100, dragging);
+}
+const viewer = $("#viewer");
+viewer.addEventListener("pointerdown", e => {
+  if (e.target.closest(".v-bar")) return;
+  vp = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, onCard: !!e.target.closest(".v-mover") };
+  try { viewer.setPointerCapture(e.pointerId); } catch {}
+  if (vp.onCard) tiltAt(e, true);
+});
+viewer.addEventListener("pointermove", e => {
+  if (!VW.open) return;
+  if (vp && e.pointerId === vp.id) { if (Math.hypot(e.clientX - vp.x, e.clientY - vp.y) > 6) vp.moved = true; tiltAt(e, true); }
+  else if (!vp && e.pointerType === "mouse") tiltAt(e, true);
+});
+const endPress = e => {
+  if (!vp) return;
+  const tapOutside = !vp.moved && !vp.onCard; vp = null;
+  if (e.pointerType !== "mouse") setTilt(0, 0, 50, 50, false);
+  if (tapOutside && e.type === "pointerup") closeViewer();
+};
+viewer.addEventListener("pointerup", endPress);
+viewer.addEventListener("pointercancel", endPress);
+viewer.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !vp) setTilt(0, 0, 50, 50, false); });
+$("#vClose").onclick = () => closeViewer();
+$("#vEdit").onclick = () => { const s = VW.slot; closeViewer(true); openCard(s); };
+document.addEventListener("keydown", e => { if (VW.open && e.key === "Escape") { e.preventDefault(); closeViewer(); } }, true);
+// iPhone: tilt the card by moving the phone (iOS asks for permission once)
+$("#vGyro").onclick = () => {
+  const start = () => { VW.gyro = true; VW.g0 = null; $("#vGyro").hidden = true; addEventListener("deviceorientation", onGyro); toast("Tilt your phone to move the light"); };
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      DeviceOrientationEvent.requestPermission().then(p => p === "granted" ? start() : toast("Motion access is off. Drag the card to tilt it instead.")).catch(() => toast("Tilting isn't available here. Drag the card instead."));
+    } else start();
+  } catch { toast("Tilting isn't available here. Drag the card instead."); }
+};
+function onGyro(e) {
+  if (!VW.open || vp || e.beta == null) return;
+  if (!VW.g0) VW.g0 = { b: e.beta, g: e.gamma };
+  const db = clamp(e.beta - VW.g0.b, -24, 24), dg = clamp(e.gamma - VW.g0.g, -24, 24);
+  setTilt(-db * .9, dg * 1.1, 50 + dg * 2, 50 + db * 2, false);
+}
+
 /* ---------------- Usernames + PINs (website only) ----------------
    Each username's binder is saved on this device under its own key. Anyone using the device can
    look at a binder by its username; changing it needs that username's PIN. A binder published
@@ -2513,13 +2925,26 @@ async function pinHash(salt, pin) {
   let h = 0; for (const x of data) h = (h * 31 + x) >>> 0; return "w" + h.toString(16);
 }
 const seedCache = new Map();
+// The binder saved on the site for a username. GitHub itself has the newest save right away
+// (the site takes about a minute to update), so ask GitHub first and fall back to the site.
 async function fetchSeed(key) {
   if (seedCache.has(key)) return seedCache.get(key);
-  let v = null;
+  let v = null, j = null;
+  const file = "users/" + encodeURIComponent(key) + ".json";
   try {
-    const r = await fetch("users/" + encodeURIComponent(key) + ".json", { cache: "no-cache" });
-    if (r.ok) { const j = await r.json(); v = { settings: j.settings || j.binder || null, cards: Array.isArray(j.cards) ? j.cards : [], published: +j.published || 0 }; }
+    const h = { Accept: "application/vnd.github.raw+json" };
+    if (WEB && ghToken()) h.Authorization = "Bearer " + ghToken();
+    const r = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${file}?ref=${GH.branch}`, { headers: h, cache: "no-store" });
+    if (r.ok) j = await r.json();
   } catch {}
+  if (!j) {
+    try { const r = await fetch((WEB ? "" : SITE_URL) + file + "?t=" + Date.now(), { cache: "no-store" }); if (r.ok) j = await r.json(); } catch {}
+  }
+  if (j) {
+    v = { settings: j.settings || j.binder || null, cards: Array.isArray(j.cards) ? j.cards : [], published: +j.published || 0 };
+    // outside the website, site paths need the site's full address
+    if (!WEB) v.cards.forEach(c => { if (/^users\//.test(c.image || "")) c.image = SITE_URL + c.image; });
+  }
   seedCache.set(key, v);
   return v;
 }
@@ -2573,6 +2998,7 @@ $("#newerKeep").onclick = () => {
 function updateUserUi() {
   if (!WEB) return;
   $("#userBtn").hidden = false;
+  $("#saveBtn").hidden = !canSave(); updateSaveDot();
   $("#userName").textContent = U.name || "Sign in";
   const l = $("#userLock"); l.hidden = !U.name;
   l.textContent = V.readOnly ? "View only" : "Editing"; l.classList.toggle("editing", !V.readOnly);
@@ -2680,10 +3106,12 @@ async function boot() {
     if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
     return;
   }
+  $("#saveBtn").hidden = !DESKTOP;
   const local = await readLocal();
   if (local && (local.cards?.length || local.settings)) {
     S.settings = { ...S.settings, ...(local.settings || {}) };
     S.cards = Array.isArray(local.cards) && local.cards.length ? local.cards : [];
+    S.meta = { published: +local.published || 0, editedAt: +local.editedAt || 0 };
     if (!S.cards.length && !local.settings) S.cards = SAMPLE.map(c => ({ ...c }));
   } else {
     S.cards = SAMPLE.map(c => ({ ...c }));
