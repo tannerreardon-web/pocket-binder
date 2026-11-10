@@ -428,7 +428,10 @@ body.view-only .edit-only { display: none !important; }
 @media (max-width: 760px) {
   .brand .sub, .status-chip { display: none; }
   .search { order: 5; flex: 1 1 100%; }
-  .actions { flex: 1 1 auto; justify-content: flex-end; }
+  .actions { flex: 1 1 100%; flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
+  .actions .btn { padding: 0 11px; }
+  .user-btn { margin-left: auto; max-width: 60%; }
+  .user-btn #userName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   .btn .lbl { display: none; }
   .btn.primary .lbl { display: inline; }
   .detail { grid-template-columns: minmax(0, 1fr); }
