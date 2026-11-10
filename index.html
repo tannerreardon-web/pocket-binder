@@ -425,18 +425,49 @@ body.view-only .edit-only { display: none !important; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------- Phones and short screens: body.compact is set by script (narrow, or short like a phone on its side) ---------- */
+body:not(.compact) .compact-only { display: none !important; }
+#app { height: 100%; height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+html, body { overscroll-behavior: none; }
+body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; touch-action: manipulation; }
+/* iPhone Safari zooms into any text box under 16px and stays zoomed */
+@media (pointer: coarse) { input, select, textarea { font-size: 16px !important; } }
+body.compact .wide-only, body.compact .status-chip, body.compact .brand-text { display: none; }
+body.compact .topbar { flex-wrap: nowrap; gap: 8px; padding-block: 8px; }
+body.compact .brand-mark { width: 26px; height: 26px; }
+body.compact .user-btn { min-width: 0; flex: 0 1 auto; height: 34px; padding: 0 10px; gap: 6px; }
+body.compact .user-btn #userName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 34vw; }
+body.compact .user-btn .lock { font-size: 10px; padding-left: 6px; }
+body.compact .spacer { flex: 1 1 0; }
+body.compact .actions { flex: none; flex-wrap: nowrap; gap: 6px; }
+body.compact .actions .btn { height: 34px; width: 38px; padding: 0; justify-content: center; }
+body.compact .btn .lbl { display: none; }
+body.compact .search { display: none; }
+body.compact.search-open .topbar { flex-wrap: wrap; }
+body.compact.search-open .search { display: block; order: 9; flex: 1 1 100%; }
+body.compact .pager { flex-wrap: nowrap; gap: 8px; padding-block: 6px; }
+body.compact .pager .btn { height: 36px; }
+body.compact .pager .ind { min-width: 0; flex: 1; font-size: 11px; }
+body.compact .pager input[type=range], body.compact #toggleBtn { display: none; }
+body.compact .edge { display: none; }
+body.compact.dragging .edge { display: flex; width: 34px; }
+.detail-stack, body.compact .detail { grid-template-columns: minmax(0, 1fr); }
+body.compact .big-card { width: min(220px, 58vw); margin: 0 auto; }
+/* pop-up windows become full-width sheets on phones */
+body.compact dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px); }
+body.compact .dlg { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px); }
+body.compact .dlg-body { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body.compact .dlg-foot { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+body.compact .dlg-foot .btn { flex: 1 1 auto; justify-content: center; }
+body.compact .dlg-foot .left { flex: 1 1 100%; order: -1; }
+dialog.sheet { width: min(420px, 100vw); }
+.more-list { display: grid; gap: 8px; padding: 14px; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+.more-list .btn { height: 48px; justify-content: flex-start; gap: 12px; font-size: 15px; }
+.more-list .btn[data-close] { justify-content: center; margin-top: 4px; }
+.more-list .btn svg { width: 20px; height: 20px; }
 @media (max-width: 760px) {
-  .brand .sub, .status-chip { display: none; }
-  .search { order: 5; flex: 1 1 100%; }
-  .actions { flex: 1 1 100%; flex-wrap: nowrap; justify-content: space-between; gap: 6px; }
-  .actions .btn { padding: 0 11px; }
-  .user-btn { margin-left: auto; max-width: 60%; }
-  .user-btn #userName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .btn .lbl { display: none; }
-  .btn.primary .lbl { display: inline; }
   .detail { grid-template-columns: minmax(0, 1fr); }
   .big-card { width: min(240px, 70vw); margin: 0 auto; }
-  .edge { width: 40px; }
   .pager input[type=range] { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -462,11 +493,13 @@ body.view-only .edit-only { display: none !important; }
       <input id="searchInput" type="search" placeholder="Find a card…" autocomplete="off" aria-label="Find a card by name, set or number">
     </label>
     <div class="actions">
+      <button class="btn icon compact-only" id="searchToggle" aria-label="Find a card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
       <button class="btn primary" id="scanBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3.5"/></svg><span class="lbl">Scan pages</span></button>
-      <button class="btn" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Import</span></button>
-      <button class="btn" id="imagesBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Get images</span></button>
-      <button class="btn" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Export</span></button>
-      <button class="btn" id="customBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A5.6 5.6 0 0 0 22 10c0-4.4-4.5-8-10-8z"/></svg><span class="lbl">Customize</span></button>
+      <button class="btn wide-only" id="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Import</span></button>
+      <button class="btn wide-only" id="imagesBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span class="lbl">Get images</span></button>
+      <button class="btn wide-only" id="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span class="lbl">Export</span></button>
+      <button class="btn wide-only" id="customBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 0 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A5.6 5.6 0 0 0 22 10c0-4.4-4.5-8-10-8z"/></svg><span class="lbl">Customize</span></button>
+      <button class="btn icon compact-only" id="moreBtn" aria-label="More" aria-haspopup="dialog"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
     </div>
   </header>
 
@@ -675,6 +708,20 @@ body.view-only .edit-only { display: none !important; }
       <p class="progress" id="importMsg"></p>
     </div>
     <div class="dlg-foot"><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn primary" id="doImportBtn">Import</button></div>
+  </div>
+</dialog>
+
+<!-- More menu (phones) -->
+<dialog id="moreDlg" class="sheet" aria-label="More">
+  <div class="dlg">
+    <div class="more-list" id="moreList">
+      <button type="button" class="btn" data-do="imagesBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>Get images</button>
+      <button type="button" class="btn" data-do="importBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Import cards</button>
+      <button type="button" class="btn" data-do="exportBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3m0 0-4 4m4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>Export binder file</button>
+      <button type="button" class="btn" data-do="customBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Customize binder</button>
+      <button type="button" class="btn" data-do="toggleBtn" id="moreToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h7v14H4zM13 5h7v14h-7z"/></svg><span>Close binder</span></button>
+      <button type="button" class="btn" data-close>Cancel</button>
+    </div>
   </div>
 </dialog>
 
@@ -974,8 +1021,9 @@ function geometry() {
   const st = $("#stage").getBoundingClientRect();
   const { cols, rows } = S.settings;
   V.mobile = st.width < 720;
-  const availW = V.mobile ? st.width - 70 : st.width - 140;
-  const availH = st.height - 48;
+  const compact = document.body.classList.contains("compact");
+  const availW = V.mobile ? st.width - (compact ? 22 : 70) : st.width - (compact ? 60 : 140);
+  const availH = st.height - (compact ? 20 : 48);
   // in card-width units
   const kw = cols + 0.08 * (cols - 1) + 0.26;      // page width
   const kh = rows * (88 / 63) + 0.08 * (rows - 1) + 0.26;
@@ -1317,8 +1365,36 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowRight") { e.preventDefault(); next(); }
   if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
 });
+// Compact layout for phones: narrow screens, or short ones (a phone turned sideways)
+function setCompact() {
+  const c = innerWidth <= 760 || innerHeight <= 500;
+  document.body.classList.toggle("compact", c);
+  if (!c) document.body.classList.remove("search-open");
+}
+setCompact();
 let rzT = 0;
-addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { const wasMobile = V.mobile; geometry(); if (wasMobile !== V.mobile) V.side = "right"; updatePos(true); updatePager(); }, 120); });
+addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { setCompact(); const wasMobile = V.mobile; geometry(); if (wasMobile !== V.mobile) V.side = "right"; updatePos(true); updatePager(); }, 120); });
+// iPhone: the toolbar can change the visible height without a resize event
+if (window.visualViewport) visualViewport.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { geometry(); updatePos(true); }, 150); });
+$("#searchToggle").onclick = () => {
+  const open = !document.body.classList.contains("search-open");
+  document.body.classList.toggle("search-open", open);
+  geometry(); updatePos(true);
+  if (open) setTimeout(() => $("#searchInput").focus(), 30);
+};
+$("#searchInput").addEventListener("blur", () => {
+  if (document.body.classList.contains("compact") && !$("#searchInput").value) setTimeout(() => { document.body.classList.remove("search-open"); geometry(); updatePos(true); }, 150);
+});
+$("#moreBtn").onclick = () => {
+  $("#moreList [data-do=imagesBtn]").hidden = $("#imagesBtn").hidden;
+  $("#moreToggle span").textContent = V.cur === 0 ? "Open binder" : "Close binder";
+  $("#moreDlg").showModal();
+};
+$("#moreList").addEventListener("click", e => {
+  const b = e.target.closest("[data-do]"); if (!b) return;
+  $("#moreDlg").close();
+  const target = document.getElementById(b.dataset.do); if (target) target.click();
+});
 
 /* ---------------- Search ---------------- */
 $("#searchInput").addEventListener("keydown", e => {
